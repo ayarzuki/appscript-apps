@@ -9,6 +9,7 @@ const state = {
   nav: [],
   dbReady: false,
   currentRoute: '',
+  currentHash: '',
   centers: [],
   teachers: [],
   classes: []
@@ -138,11 +139,21 @@ function confirmDialog(title, message, onConfirm) {
   });
 }
 
-function navigateTo(hash) { window.location.hash = hash; }
+function navigateTo(hash) {
+  state.currentHash = hash;
+  renderRoute(hash);
+  try {
+    google.script.history.pushState({ route: hash }, {}, hash);
+  } catch (e) {}
+}
 
 function handleRoute() {
-  const hash = window.location.hash || '#/beranda';
-  const parts = hash.slice(2).split('?');
+  renderRoute(state.currentHash || '#/beranda');
+}
+
+function renderRoute(hash) {
+  const h = (hash && hash.charAt(0) === '#') ? hash : '#/beranda';
+  const parts = h.slice(2).split('?');
   const screen = parts[0] || 'beranda';
   const params = new URLSearchParams(parts[1] || '');
   state.currentRoute = screen;
@@ -1047,6 +1058,30 @@ function showNotRegisteredScreen(email) {
   showAccessIssue({ state: 'not-registered', email: email || 'tidak terdeteksi' });
 }
 
+function initRouting() {
+  let routed = false;
+  const go = (h, replace) => {
+    if (routed) return; routed = true;
+    const hash = (h && h.charAt(0) === '#') ? h : '#/beranda';
+    state.currentHash = hash;
+    renderRoute(hash);
+    try { (replace ? google.script.history.replaceState : google.script.history.pushState).call(null, { route: hash }, {}, hash); } catch (e) {}
+  };
+  try {
+    google.script.url.getLocation(function (loc) {
+      go(loc && loc.hash ? loc.hash : '#/beranda', true);
+    });
+  } catch (e) {}
+  setTimeout(function () { go('#/beranda', true); }, 1500); // fallback if getLocation never fires
+  try {
+    google.script.history.setChangeHandler(function (e) {
+      const h = (e && e.location && e.location.hash) ? e.location.hash : '#/beranda';
+      state.currentHash = h;
+      renderRoute(h);
+    });
+  } catch (e) {}
+}
+
 async function initApp() {
   setLoading(true);
   try {
@@ -1074,6 +1109,9 @@ async function initApp() {
     state.nav = b.nav || [];
     state.dbReady = b.dbReady;
 
+    const fv = document.getElementById('footer-version');
+    if (fv) fv.textContent = 'v' + b.version;
+
     document.getElementById('user-display-name').textContent = state.user.full_name;
     document.getElementById('user-display-role').textContent = `${state.user.role} ${state.user.centers.length ? '(' + state.user.centers.join(',') + ')' : '(Semua)'}`;
     document.getElementById('user-avatar').textContent = (state.user.full_name || 'U').charAt(0).toUpperCase();
@@ -1099,8 +1137,7 @@ async function initApp() {
       state.classes = await api('listClasses');
     } catch (e) {}
 
-    window.addEventListener('hashchange', handleRoute);
-    handleRoute();
+    initRouting();
   } catch (err) {
     showAccessIssue({ state: 'error', errorMessage: err && err.message ? err.message : String(err) });
   } finally {
@@ -1108,9 +1145,23 @@ async function initApp() {
   }
 }
 
-document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
-  document.getElementById('nav').classList.toggle('open');
+document.addEventListener('click', function (ev) {
+  if (ev.defaultPrevented) return;
+  const t = ev.target;
+  const a = t && t.closest ? t.closest('a[href^="#"]') : null;
+  if (!a) return;
+  ev.preventDefault();
+  const href = a.getAttribute('href') || '#/beranda';
+  if (href.length > 1) navigateTo(href);
 });
+
+const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+if (btnToggleSidebar) {
+  btnToggleSidebar.addEventListener('click', () => {
+    const nav = document.getElementById('nav');
+    if (nav) nav.classList.toggle('open');
+  });
+}
 
 window.addEventListener('DOMContentLoaded', initApp);
 </script>

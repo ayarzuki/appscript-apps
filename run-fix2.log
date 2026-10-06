@@ -1,0 +1,42 @@
+Tue, Oct  6, 2026  1:39:14 PM
+STATUS: done
+FILES:
+- [src/Scripts.html](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/src/Scripts.html) — Sandbox-safe routing refactor (`navigateTo`, `handleRoute`, `renderRoute`, `initRouting`), delegated click listener to prevent `<base target="_top">` hash link hijacking, removed direct `location.hash` assignment, and added runtime footer version fill.
+- [ui-sim.js](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/ui-sim.js) — New UI click-through regression harness in Node/JSDOM asserting all 11 nav items prevent default, render view content, produce no uncaught exceptions, and verify footer version `v0.1.2`.
+
+UI-SIM:
+PASS click beranda
+PASS click murid
+PASS click kelas
+PASS click sesi
+PASS click penilaian
+PASS click event
+PASS click waiting
+PASS click leveling
+PASS click media
+PASS click dashboard
+PASS click admin
+RESULT: PASS (11 clicks)
+
+HARNESS:
+PASS S5 — DB property unset (openById must throw if called)
+PASS S6 — stored email case and space variation, session lowercase
+PASS S7 — is_active stored as string 'TRUE'
+
+RESULT: PASS (7 scenarios)
+
+VERIFY:
+== 8. warnings (non-fatal) ==
+  WARN 1 TODO/FIXME marker(s) across files
+  PASS warnings evaluated
+
+=========================================
+RESULT: PASS — 0 failure(s), 1 warning(s)
+
+NOTES:
+- `jsdom` was installed outside the repository in `$TEMP/uidom` (`node_modules` was not created inside the workspace).
+- `ui-sim.js` resolved `jsdom` via fallback path to `$TEMP/uidom/node_modules/jsdom`.
+- All 11 navigation links passed click handling, default prevention, and async screen rendering.
+- No forbidden files (`verify.js`, `login-sim.js`, `TASK.md`, `TASK-FIX.md`, `README.md`, `.clasp.json`, `src/Config.gs`) were touched, and neither clasp nor git was executed.
+EXIT=0
+Tue, Oct  6, 2026  1:51:37 PM

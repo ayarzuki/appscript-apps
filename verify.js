@@ -230,6 +230,18 @@ has('Auth.gs', /email-unavailable/, 'Auth.gs distinguishes email-unavailable sta
   if (simTxt === null) fail('login-sim.js (test harness) missing at project root');
   else ok('login-sim.js present');
 }
+
+console.log('== 7c. routing sandbox-safety ==');
+{
+  const s = texts['Scripts.html'];
+  if (s) {
+    if (s.includes('google.script.history')) ok('Scripts.html uses google.script.history'); else fail('Scripts.html missing google.script.history (sandbox-safe routing required)');
+    if (s.includes('preventDefault(') && s.includes('closest(')) ok('delegated click interception present'); else fail('delegated click interception for in-app hash links missing');
+    if (/location\.hash\s*=(?!=)/.test(s)) fail('Scripts.html still assigns location.hash directly (sandbox-unsafe: causes blank page)'); else ok('no direct location.hash assignment');
+  }
+  const uiSim = read(path.join(ROOT, 'ui-sim.js')) !== null;
+  if (uiSim) ok('ui-sim.js present'); else warn('ui-sim.js (UI click-through harness) not present');
+}
 {
   const gsAll = REQUIRED_FILES.filter((x) => x.endsWith('.gs')).map((f) => texts[f] || '');
   const withRole = gsAll.filter((t) => t.includes('requireRole_')).length;

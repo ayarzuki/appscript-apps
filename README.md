@@ -142,6 +142,7 @@ dari editor: jalankan fungsi **`diagnoseLogin`**.
 | "Email Tidak Terbaca" | Sesi Google tidak mengirim email — login dengan akun `@seven-retail.com` saja (hindari multi-akun di browser), lalu muat ulang |
 | "Akses Ditolak — (email) belum terdaftar" | Email terbaca benar tetapi tidak ada di tabel `users` → daftarkan lewat menu Admin |
 | "Akun Non-Aktif" | Baris `users` ada tapi `is_active` = FALSE → aktifkan lewat Admin |
+| "Klik menu → halaman kosong" | Bug sandbox Apps Script (navigasi hash + `base target="_top"`) — **sudah diperbaiki di v0.1.2**; cukup muat ulang halaman |
 
 **PENTING pasca-update v0.1.1:** manifest kini menambahkan scope `userinfo.email` ("View your email
 address") agar email pengguna terbaca pada web app. Setelah update ini, buka editor dan jalankan sekali
@@ -151,5 +152,5 @@ Test lokal: `node login-sim.js` mensimulasikan 7 skenario login (DB siap/kosong,
 non-aktif, variasi huruf besar/kecil email, dll.) tanpa perlu akun Google.
 
 ---
-*Dibangun: 6 Okt 2026 · **v0.1.1** (fix login: scope `userinfo.email`, stateful bootstrap, `diagnoseLogin`) ·
-diverifikasi: `node verify.js` (0 fail) + `node login-sim.js` (7/7 skenario) + diff byte-identik dengan project remote.*
+*Dibangun: 6 Okt 2026 · **v0.1.2** (fix halaman kosong saat klik menu: sandbox-safe routing + `google.script.history`) ·
+diverifikasi: `node verify.js` + `node login-sim.js` (7/7 skenario) + `node ui-sim.js` (11/11 klik navigasi) + diff byte-identik dengan project remote.*
