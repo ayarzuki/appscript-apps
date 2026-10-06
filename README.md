@@ -130,5 +130,26 @@ Tanpa template, tombol Generate PDF akan menolak dengan pesan yang jelas.
 - Manifest: `executeAs: USER_DEPLOYING`, `access: DOMAIN` (hanya `@seven-retail.com`).
 - Kuota Apps Script & batas 6 menit per eksekusi: proses berat (snapshot, PDF massal) dijadwalkan lewat trigger / dipecah per cabang.
 
+## 10. Troubleshooting & diagnostik
+
+Setiap layar kegagalan web app punya tombol **"Tampilkan Diagnostik"** — tekan untuk melihat email
+terdeteksi, status DB, jumlah user, dan *verdict* penyebab. Diagnostik yang sama juga bisa dijalankan
+dari editor: jalankan fungsi **`diagnoseLogin`**.
+
+| Gejala | Arti & tindakan |
+|---|---|
+| "Database Belum Siap" | `setupDatabase()` belum dijalankan → buka editor, jalankan `setupDatabase()` lalu `seedMasterData()` |
+| "Email Tidak Terbaca" | Sesi Google tidak mengirim email — login dengan akun `@seven-retail.com` saja (hindari multi-akun di browser), lalu muat ulang |
+| "Akses Ditolak — (email) belum terdaftar" | Email terbaca benar tetapi tidak ada di tabel `users` → daftarkan lewat menu Admin |
+| "Akun Non-Aktif" | Baris `users` ada tapi `is_active` = FALSE → aktifkan lewat Admin |
+
+**PENTING pasca-update v0.1.1:** manifest kini menambahkan scope `userinfo.email` ("View your email
+address") agar email pengguna terbaca pada web app. Setelah update ini, buka editor dan jalankan sekali
+**`authorizeSmokeTest`** → setujui izin baru → baru buka ulang web app.
+
+Test lokal: `node login-sim.js` mensimulasikan 7 skenario login (DB siap/kosong, email kosong, user
+non-aktif, variasi huruf besar/kecil email, dll.) tanpa perlu akun Google.
+
 ---
-*Dibangun: 6 Okt 2026 · kode diverifikasi lokal dengan `node verify.js` (46 target server–klien, skema 17 tabel, tanpa resource eksternal).*
+*Dibangun: 6 Okt 2026 · **v0.1.1** (fix login: scope `userinfo.email`, stateful bootstrap, `diagnoseLogin`) ·
+diverifikasi: `node verify.js` (0 fail) + `node login-sim.js` (7/7 skenario) + diff byte-identik dengan project remote.*

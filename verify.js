@@ -54,6 +54,7 @@ if (texts['appsscript.json']) {
     const sc = (m.oauthScopes || []).join(' ');
     if (sc.includes('auth/spreadsheets')) ok('scope spreadsheets'); else fail('scope spreadsheets missing');
     if (sc.includes('auth/drive')) ok('scope drive'); else fail('scope drive missing');
+    if (sc.includes('auth/userinfo.email')) ok('scope userinfo.email'); else fail('scope userinfo.email missing (Session.getActiveUser().getEmail() returns empty without it)');
   } catch (e) { fail('appsscript.json is not valid JSON: ' + e.message); }
 }
 
@@ -220,6 +221,14 @@ if (texts['Index.html']) {
     if (new RegExp(`include\\('${inc}'\\)`).test(texts['Index.html'])) ok(`Index.html includes ${inc}`);
     else fail(`Index.html missing <?!= include('${inc}') ?>`);
   }
+}
+has('Auth.gs', /function\s+diagnoseLogin\s*\(/, 'Auth.gs defines diagnoseLogin()');
+has('Auth.gs', /db-not-ready/, 'Auth.gs distinguishes db-not-ready state');
+has('Auth.gs', /email-unavailable/, 'Auth.gs distinguishes email-unavailable state');
+{
+  const simTxt = read(path.join(ROOT, 'login-sim.js'));
+  if (simTxt === null) fail('login-sim.js (test harness) missing at project root');
+  else ok('login-sim.js present');
 }
 {
   const gsAll = REQUIRED_FILES.filter((x) => x.endsWith('.gs')).map((f) => texts[f] || '');

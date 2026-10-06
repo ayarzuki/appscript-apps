@@ -2,18 +2,33 @@
  * Auth.gs — Authentication, authorization and application bootstrapping.
  */
 
+function normalizeEmail_(v) {
+  return String(v == null ? '' : v).trim().toLowerCase();
+}
+
+function isUserActive_(u) {
+  if (!u) return false;
+  const a = u.is_active;
+  return a === true || a === 'TRUE' || a === 'true' || a === 1 || a === '1';
+}
+
 /**
  * Retrieves the currently logged-in user and verifies active status.
  * Throws user-friendly Indonesian error if not registered or inactive.
  * @return {Object} User object with centerList property
  */
 function getCurrentUser_() {
-  const email = Session.getActiveUser().getEmail();
+  let email = '';
+  try {
+    email = normalizeEmail_(Session.getActiveUser().getEmail());
+  } catch (e) {
+    email = '';
+  }
   if (!email) {
     throw new Error('Sesi pengguna tidak valid. Silakan muat ulang halaman.');
   }
 
-  const user = Db.findOne('users', u => u.email && u.email.toLowerCase() === email.toLowerCase() && (u.is_active === true || u.is_active === 'TRUE'));
+  const user = Db.findOne('users', u => normalizeEmail_(u.email) === email && isUserActive_(u));
   if (!user) {
     throw new Error('Akun Anda belum terdaftar di sistem.');
   }
@@ -73,65 +88,194 @@ function canAccess_(user, roles, centerCode) {
  * @return {Object}
  */
 function getAppBootstrap() {
+  let email = '';
+  let dbReady = false;
   try {
-    const email = Session.getActiveUser().getEmail();
-    const dbSpreadsheetId = getProp_(PROP_KEYS.DB_SPREADSHEET_ID);
-    const dbReady = Boolean(dbSpreadsheetId);
+    const dbId = getProp_(PROP_KEYS.DB_SPREADSHEET_ID);
+    dbReady = Boolean(dbId);
 
-    if (!email) {
+    try {
+      email = String(Session.getActiveUser().getEmail() || '').trim();
+    } catch (e) {
+      email = '';
+    }
+
+    if (!dbReady) {
       return {
+        state: 'db-not-ready',
+        email: email,
         notRegistered: true,
-        email: '',
+        dbReady: false,
         title: APP_TITLE,
-        version: APP_VERSION,
-        dbReady: dbReady
+        version: APP_VERSION
       };
     }
 
-    const user = Db.findOne('users', u => u.email && u.email.toLowerCase() === email.toLowerCase() && (u.is_active === true || u.is_active === 'TRUE'));
-    if (!user) {
+    if (email === '') {
       return {
+        state: 'email-unavailable',
+        email: '',
         notRegistered: true,
-        email: email,
+        dbReady: true,
         title: APP_TITLE,
-        version: APP_VERSION,
-        dbReady: dbReady
+        version: APP_VERSION
+      };
+    }
+
+    const normEmail = normalizeEmail_(email);
+    const users = Db.readAll('users') || [];
+    const matched = users.filter(u => normalizeEmail_(u.email) === normEmail);
+
+    if (matched.length === 0) {
+      return {
+        state: 'not-registered',
+        email: email,
+        notRegistered: true,
+        dbReady: true,
+        title: APP_TITLE,
+        version: APP_VERSION
+      };
+    }
+
+    const activeUser = matched.find(isUserActive_);
+    if (!activeUser) {
+      return {
+        state: 'inactive',
+        email: email,
+        notRegistered: true,
+        dbReady: true,
+        title: APP_TITLE,
+        version: APP_VERSION
       };
     }
 
     let centerList = [];
-    if (user.center_codes && String(user.center_codes).trim().length > 0) {
-      centerList = String(user.center_codes).split(',').map(c => c.trim()).filter(Boolean);
+    if (activeUser.center_codes && String(activeUser.center_codes).trim().length > 0) {
+      centerList = String(activeUser.center_codes).split(',').map(c => c.trim()).filter(Boolean);
     }
 
-    const allowedScreenIds = NAV_BY_ROLE[user.role] || ['beranda'];
+    const allowedScreenIds = NAV_BY_ROLE[activeUser.role] || ['beranda'];
     const nav = allowedScreenIds.map(screenId => ({
       id: screenId,
       label: NAV_SCREENS[screenId] || screenId
     }));
 
     return {
+      state: 'ok',
+      email: email,
       notRegistered: false,
+      dbReady: true,
+      title: APP_TITLE,
+      version: APP_VERSION,
       user: {
-        email: user.email,
-        full_name: user.full_name || user.email,
-        role: user.role,
+        email: activeUser.email,
+        full_name: activeUser.full_name || activeUser.email,
+        role: activeUser.role,
         centers: centerList
       },
-      nav: nav,
-      dbReady: dbReady,
-      title: APP_TITLE,
-      version: APP_VERSION
+      nav: nav
     };
   } catch (err) {
     console.error('getAppBootstrap error: ' + err.message);
     return {
+      state: 'error',
+      email: email,
       notRegistered: true,
-      email: '',
+      dbReady: dbReady,
       title: APP_TITLE,
       version: APP_VERSION,
-      dbReady: false,
-      error: err.message
+      errorMessage: err.message
     };
   }
+}
+
+/**
+ * Client-callable diagnostic function. Never throws.
+ * @return {Object}
+ */
+function diagnoseLogin() {
+  let activeUser = '';
+  let effectiveUser = '';
+  let dbReady = false;
+  let dbIdTail = null;
+  let usersCount = 0;
+  let matchedEmail = false;
+  let matchedActive = false;
+  let verdict = '';
+  let errorMessage = null;
+
+  try {
+    try {
+      activeUser = Session.getActiveUser().getEmail() || '';
+    } catch (e) {
+      activeUser = '';
+    }
+
+    try {
+      effectiveUser = Session.getEffectiveUser().getEmail() || '';
+    } catch (e) {
+      effectiveUser = '';
+    }
+
+    let dbId = null;
+    try {
+      dbId = getProp_(PROP_KEYS.DB_SPREADSHEET_ID);
+      dbReady = Boolean(dbId);
+      if (dbId) {
+        dbIdTail = String(dbId).slice(-6);
+      }
+    } catch (e) {
+      dbReady = false;
+      errorMessage = e.message;
+    }
+
+    const normEmail = normalizeEmail_(activeUser);
+
+    if (dbReady) {
+      try {
+        const users = Db.readAll('users') || [];
+        usersCount = users.length;
+        const matched = users.filter(u => normalizeEmail_(u.email) === normEmail);
+        if (normEmail && matched.length > 0) {
+          matchedEmail = true;
+          if (matched.some(isUserActive_)) {
+            matchedActive = true;
+          }
+        }
+      } catch (e) {
+        if (!errorMessage) {
+          errorMessage = e.message;
+        }
+      }
+    }
+
+    if (!dbReady) {
+      verdict = 'Database belum disiapkan (jalankan setupDatabase).';
+    } else if (!normEmail) {
+      verdict = 'Email tidak terbaca dari sesi Google.';
+    } else if (!matchedEmail) {
+      verdict = 'Email ' + activeUser + ' belum terdaftar.';
+    } else if (!matchedActive) {
+      verdict = 'Akun ' + activeUser + ' non-aktif.';
+    } else if (errorMessage) {
+      verdict = 'Terjadi kesalahan: ' + errorMessage;
+    } else {
+      verdict = 'Siap digunakan.';
+    }
+  } catch (err) {
+    errorMessage = err.message;
+    verdict = 'Terjadi kesalahan: ' + err.message;
+  }
+
+  return {
+    activeUser: activeUser,
+    effectiveUser: effectiveUser,
+    dbReady: dbReady,
+    dbIdTail: dbIdTail,
+    usersCount: usersCount,
+    matchedEmail: matchedEmail,
+    matchedActive: matchedActive,
+    verdict: verdict,
+    errorMessage: errorMessage
+  };
 }

@@ -3,7 +3,7 @@
  */
 
 const APP_TITLE = 'Sistem Administrasi Akademik Sparks Math';
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.1.1';
 
 // Script Properties keys
 const PROP_KEYS = {

@@ -1,0 +1,36 @@
+Tue, Oct  6, 2026 12:00:20 PM
+STATUS: done
+FILES:
+src/appsscript.json — added https://www.googleapis.com/auth/userinfo.email scope
+src/Auth.gs — stateful bootstrap routing, normalizeEmail_, isUserActive_, and diagnoseLogin()
+src/Views.html — replaced tpl-not-registered with tpl-access-issue and extended tpl-db-not-ready with diagnostics
+src/Scripts.html — added diagnoseLogin to api() bridge and implemented issue routing UI
+login-sim.js — created standalone mock test harness covering scenarios S1–S7
+
+HARNESS:
+PASS S1 — DB ready, active SA user, session same
+PASS S2 — DB ready, users sheet empty
+PASS S3 — user row is_active: false
+PASS S4 — session email empty
+PASS S5 — DB property unset (openById must throw if called)
+PASS S6 — stored email case and space variation, session lowercase
+PASS S7 — is_active stored as string 'TRUE'
+
+RESULT: PASS (7 scenarios)
+
+VERIFY:
+  PASS Auth.gs distinguishes db-not-ready state
+  PASS Auth.gs distinguishes email-unavailable state
+  PASS login-sim.js present
+  PASS requireRole_ used across 12 server files
+  PASS UI labels present: 11/11
+== 8. warnings (non-fatal) ==
+  WARN 1 TODO/FIXME marker(s) across files
+  PASS warnings evaluated
+
+=========================================
+RESULT: PASS — 0 failure(s), 1 warning(s)
+
+NOTES: none
+EXIT=0
+Tue, Oct  6, 2026 12:09:46 PM

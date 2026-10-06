@@ -59,6 +59,7 @@ function api(name, ...args) {
 
     switch (name) {
       case 'getAppBootstrap': google.script.run.withSuccessHandler(s).withFailureHandler(f).getAppBootstrap(); break;
+      case 'diagnoseLogin': google.script.run.withSuccessHandler(s).withFailureHandler(f).diagnoseLogin(); break;
       case 'getAppVersionInfo': google.script.run.withSuccessHandler(s).withFailureHandler(f).getAppVersionInfo(); break;
       case 'getSetupStatus': google.script.run.withSuccessHandler(s).withFailureHandler(f).getSetupStatus(); break;
       case 'listStudents': google.script.run.withSuccessHandler(s).withFailureHandler(f).listStudents(args[0]); break;
@@ -923,11 +924,152 @@ function populateCenterOptions(selectEl) {
   if (curr) selectEl.value = curr;
 }
 
+function renderIssue(tplId, data) {
+  setLoading(false);
+  const layout = document.getElementById('app-layout');
+  if (layout) layout.classList.add('hidden');
+
+  const tpl = document.getElementById(tplId);
+  if (!tpl) return;
+  const clone = tpl.content.cloneNode(true);
+
+  const titleEl = clone.querySelector('#issue-title');
+  if (titleEl && data.title) titleEl.textContent = data.title;
+
+  const msgEl = clone.querySelector('#issue-message');
+  if (msgEl && data.message) msgEl.textContent = data.message;
+
+  const hintEl = clone.querySelector('#issue-hint');
+  if (hintEl && data.hint) hintEl.textContent = data.hint;
+
+  const emailEl = clone.querySelector('#issue-email');
+  if (emailEl) emailEl.textContent = data.email || '';
+
+  const btn = clone.querySelector('#btn-issue-diag');
+  const diagPre = clone.querySelector('#issue-diag');
+  if (btn && diagPre) {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Memeriksa...';
+      try {
+        const res = await api('diagnoseLogin');
+        diagPre.textContent = JSON.stringify(res, null, 2);
+        diagPre.classList.remove('hidden');
+        diagPre.style.display = 'block';
+      } catch (err) {
+        diagPre.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
+        diagPre.classList.remove('hidden');
+        diagPre.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Tampilkan Diagnostik';
+      }
+    });
+  }
+
+  document.body.appendChild(clone);
+}
+
+function showAccessIssue(b) {
+  const issueState = (b && b.state) || (b && b.notRegistered ? 'not-registered' : 'error');
+  const email = (b && b.email) ? b.email : 'tidak terdeteksi';
+  const errorMessage = (b && b.errorMessage) ? b.errorMessage : (b && b.error ? b.error : '');
+
+  let title = 'Terjadi Kesalahan';
+  let message = 'Sistem gagal memuat profil: ' + errorMessage;
+  let hint = 'Jalankan Diagnostik dan kirimkan hasilnya ke tim IT.';
+
+  if (issueState === 'not-registered') {
+    title = 'Akses Ditolak';
+    message = 'Akun Google Anda (' + email + ') belum terdaftar di Sistem Administrasi Akademik Sparks Math.';
+    hint = 'Silakan hubungi tim HQ untuk mendaftarkan email Anda.';
+  } else if (issueState === 'email-unavailable') {
+    title = 'Email Tidak Terbaca';
+    message = 'Sistem tidak dapat membaca email akun Google Anda (kosong).';
+    hint = 'Pastikan Anda login dengan akun @seven-retail.com — gunakan hanya satu akun Google di browser ini — lalu muat ulang halaman. Bila masih gagal, jalankan Diagnostik dan kirimkan hasilnya ke tim IT.';
+  } else if (issueState === 'inactive') {
+    title = 'Akun Non-Aktif';
+    message = 'Akun ' + email + ' terdaftar tetapi berstatus non-aktif.';
+    hint = 'Hubungi tim HQ untuk mengaktifkan kembali.';
+  } else if (issueState === 'error') {
+    title = 'Terjadi Kesalahan';
+    message = 'Sistem gagal memuat profil: ' + errorMessage;
+    hint = 'Jalankan Diagnostik dan kirimkan hasilnya ke tim IT.';
+  }
+
+  renderIssue('tpl-access-issue', {
+    title: title,
+    message: message,
+    hint: hint,
+    email: email
+  });
+}
+
+function showDbNotReadyScreen(b) {
+  setLoading(false);
+  const layout = document.getElementById('app-layout');
+  if (layout) layout.classList.add('hidden');
+
+  const tpl = document.getElementById('tpl-db-not-ready');
+  if (!tpl) return;
+  const clone = tpl.content.cloneNode(true);
+
+  const emailEl = clone.querySelector('#dbnr-email');
+  const detected = (b && b.email) ? b.email : 'tidak terdeteksi';
+  if (emailEl) emailEl.textContent = 'Email terdeteksi: ' + detected;
+
+  const btn = clone.querySelector('#btn-dbnr-diag');
+  const diagPre = clone.querySelector('#dbnr-diag');
+  if (btn && diagPre) {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'Memeriksa...';
+      try {
+        const res = await api('diagnoseLogin');
+        diagPre.textContent = JSON.stringify(res, null, 2);
+        diagPre.classList.remove('hidden');
+        diagPre.style.display = 'block';
+      } catch (err) {
+        diagPre.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
+        diagPre.classList.remove('hidden');
+        diagPre.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Tampilkan Diagnostik';
+      }
+    });
+  }
+
+  document.body.appendChild(clone);
+}
+
+function showNotRegisteredScreen(email) {
+  showAccessIssue({ state: 'not-registered', email: email || 'tidak terdeteksi' });
+}
+
 async function initApp() {
   setLoading(true);
   try {
     const b = await api('getAppBootstrap');
-    if (!b || b.notRegistered) return showNotRegisteredScreen(b ? b.email : '');
+    if (!b) {
+      showAccessIssue({ state: 'error', errorMessage: 'Gagal memuat konfigurasi aplikasi.' });
+      return;
+    }
+
+    const appState = b.state || (b.notRegistered ? 'not-registered' : 'ok');
+    if (appState === 'db-not-ready') {
+      showDbNotReadyScreen(b);
+      return;
+    }
+    if (appState === 'email-unavailable' || appState === 'inactive' || appState === 'not-registered' || appState === 'error') {
+      showAccessIssue(b);
+      return;
+    }
+    if (appState !== 'ok') {
+      showAccessIssue(b);
+      return;
+    }
+
     state.user = b.user;
     state.nav = b.nav || [];
     state.dbReady = b.dbReady;
@@ -960,20 +1102,10 @@ async function initApp() {
     window.addEventListener('hashchange', handleRoute);
     handleRoute();
   } catch (err) {
-    showNotRegisteredScreen('');
+    showAccessIssue({ state: 'error', errorMessage: err && err.message ? err.message : String(err) });
   } finally {
     setLoading(false);
   }
-}
-
-function showNotRegisteredScreen(email) {
-  setLoading(false);
-  const layout = document.getElementById('app-layout');
-  if (layout) layout.classList.add('hidden');
-  const tpl = document.getElementById('tpl-not-registered');
-  document.body.appendChild(tpl.content.cloneNode(true));
-  const el = document.getElementById('not-registered-email');
-  if (el) el.textContent = email || 'akun Anda';
 }
 
 document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
