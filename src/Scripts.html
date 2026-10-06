@@ -12,7 +12,8 @@ const state = {
   currentHash: '',
   centers: [],
   teachers: [],
-  classes: []
+  classes: [],
+  roles: []
 };
 
 function esc(str) {
@@ -905,26 +906,415 @@ async function loadAdminTab(tab) {
   try {
     if (tab === 'users') {
       const users = await api('listUsers');
-      c.innerHTML = `<div class="table-container"><table><thead><tr><th>Email</th><th>Nama</th><th>Peran</th><th>Cabang</th><th>Aktif</th></tr></thead><tbody>` +
-        users.map(u => `<tr><td>${esc(u.email)}</td><td>${esc(u.full_name)}</td><td><span class="badge badge-class-active">${esc(u.role)}</span></td><td>${esc(u.center_codes || 'Semua')}</td><td>${u.is_active ? '✓' : '✕'}</td></tr>`).join('') + '</tbody></table></div>';
+      c.innerHTML = `
+        <div style="margin-bottom: 12px;">
+          <button id="btn-add-user" class="btn btn-primary btn-sm" type="button">+ Tambah Pengguna</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Nama</th>
+                <th>Peran</th>
+                <th>Cabang</th>
+                <th>Aktif</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>` +
+        users.map(u => `
+          <tr>
+            <td>${esc(u.email)}</td>
+            <td>${esc(u.full_name)}</td>
+            <td><span class="badge badge-class-active">${esc(u.role)}</span></td>
+            <td>${esc(u.center_codes || 'Semua')}</td>
+            <td>${u.is_active ? '✓' : '✕'}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm btn-edit-user" data-email="${esc(u.email)}">Edit</button>
+              <button class="btn btn-secondary btn-sm btn-toggle-user" data-email="${esc(u.email)}" data-active="${u.is_active ? 'true' : 'false'}">${u.is_active ? 'Nonaktifkan' : 'Aktifkan'}</button>
+            </td>
+          </tr>`).join('') + `
+            </tbody>
+          </table>
+        </div>`;
+
+      c.querySelector('#btn-add-user').addEventListener('click', () => openUserModal());
+
+      c.querySelectorAll('.btn-edit-user').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const email = btn.getAttribute('data-email');
+          const u = users.find(x => x.email === email);
+          if (u) openUserModal(u);
+        });
+      });
+
+      c.querySelectorAll('.btn-toggle-user').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const email = btn.getAttribute('data-email');
+          const active = btn.getAttribute('data-active') === 'true';
+          confirmDialog('Ubah status pengguna?', email, () => {
+            api('toggleUser', email, !active)
+              .then(() => {
+                showToast('Status pengguna berhasil diubah.');
+                loadAdminTab('users');
+              })
+              .catch(() => {});
+          });
+        });
+      });
     } else if (tab === 'centers') {
       const centers = await api('listCenters');
-      c.innerHTML = `<div class="table-container"><table><thead><tr><th>Kode</th><th>No</th><th>Nama Cabang</th><th>Status</th></tr></thead><tbody>` +
-        centers.map(x => `<tr><td><code>${esc(x.center_code)}</code></td><td>${esc(x.center_no)}</td><td>${esc(x.center_name)}</td><td>${x.is_active ? 'Aktif' : 'Non-aktif'}</td></tr>`).join('') + '</tbody></table></div>';
+      c.innerHTML = `
+        <div style="margin-bottom: 12px;">
+          <button id="btn-add-center" class="btn btn-primary btn-sm" type="button">+ Tambah Cabang</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Kode</th>
+                <th>No</th>
+                <th>Nama Cabang</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>` +
+        centers.map(x => `
+          <tr>
+            <td><code>${esc(x.center_code)}</code></td>
+            <td>${esc(x.center_no)}</td>
+            <td>${esc(x.center_name)}</td>
+            <td>${x.is_active ? 'Aktif' : 'Non-aktif'}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm btn-edit-center" data-code="${esc(x.center_code)}">Edit</button>
+            </td>
+          </tr>`).join('') + `
+            </tbody>
+          </table>
+        </div>`;
+
+      c.querySelector('#btn-add-center').addEventListener('click', () => openCenterModal());
+
+      c.querySelectorAll('.btn-edit-center').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const code = btn.getAttribute('data-code');
+          const ctr = centers.find(x => x.center_code === code);
+          if (ctr) openCenterModal(ctr);
+        });
+      });
     } else if (tab === 'programs') {
       const progs = await api('listProgramsLevels');
-      c.innerHTML = `<div class="table-container"><table><thead><tr><th>Program</th><th>Level</th><th>Urutan</th><th>Naik Kecil</th><th>Naik Besar</th></tr></thead><tbody>` +
-        progs.map(p => `<tr><td>${esc(p.program)}</td><td>${esc(p.level)}</td><td>${esc(p.level_order)}</td><td>${esc(p.next_small_level)}</td><td>${esc(p.next_big_level)}</td></tr>`).join('') + '</tbody></table></div>';
+      c.innerHTML = `
+        <div style="margin-bottom: 12px;">
+          <button id="btn-add-program" class="btn btn-primary btn-sm" type="button">+ Tambah Program/Level</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Program</th>
+                <th>Level</th>
+                <th>Urutan</th>
+                <th>Naik Kecil</th>
+                <th>Naik Besar</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>` +
+        progs.map(p => `
+          <tr>
+            <td>${esc(p.program)}</td>
+            <td>${esc(p.level)}</td>
+            <td>${esc(p.level_order)}</td>
+            <td>${esc(p.next_small_level)}</td>
+            <td>${esc(p.next_big_level)}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm btn-edit-program" data-program="${esc(p.program)}" data-level="${esc(p.level)}">Edit</button>
+            </td>
+          </tr>`).join('') + `
+            </tbody>
+          </table>
+        </div>`;
+
+      c.querySelector('#btn-add-program').addEventListener('click', () => openProgramModal());
+
+      c.querySelectorAll('.btn-edit-program').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const prog = btn.getAttribute('data-program');
+          const lvl = btn.getAttribute('data-level');
+          const p = progs.find(x => x.program === prog && x.level === lvl);
+          if (p) openProgramModal(p);
+        });
+      });
     } else if (tab === 'holidays') {
       const holidays = await api('listHolidays');
-      c.innerHTML = `<div class="table-container"><table><thead><tr><th>Tanggal</th><th>Cabang</th><th>Keterangan</th></tr></thead><tbody>` +
-        holidays.map(h => `<tr><td>${esc(formatDate(h.date))}</td><td>${esc(h.center_code || 'Semua')}</td><td>${esc(h.description)}</td></tr>`).join('') + '</tbody></table></div>';
+      c.innerHTML = `
+        <div style="margin-bottom: 12px;">
+          <button id="btn-add-holiday" class="btn btn-primary btn-sm" type="button">+ Tambah Hari Libur</button>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Cabang</th>
+                <th>Keterangan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>` +
+        holidays.map(h => `
+          <tr>
+            <td>${esc(formatDate(h.date))}</td>
+            <td>${esc(h.center_code || 'Semua')}</td>
+            <td>${esc(h.description)}</td>
+            <td>
+              <button class="btn btn-secondary btn-sm btn-del-holiday" data-date="${esc(h.date)}" data-center="${esc(h.center_code || '')}">Hapus</button>
+            </td>
+          </tr>`).join('') + `
+            </tbody>
+          </table>
+        </div>`;
+
+      c.querySelector('#btn-add-holiday').addEventListener('click', () => openHolidayModal());
+
+      c.querySelectorAll('.btn-del-holiday').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const date = btn.getAttribute('data-date');
+          const center = btn.getAttribute('data-center') || '';
+          confirmDialog('Hapus hari libur?', `${formatDate(date)} (${center || 'Semua Cabang'})`, () => {
+            api('deleteHoliday', date, center)
+              .then(() => {
+                showToast('Hari libur berhasil dihapus.');
+                loadAdminTab('holidays');
+              })
+              .catch(() => {});
+          });
+        });
+      });
     } else if (tab === 'audit') {
       const logs = await api('getAuditLog');
       c.innerHTML = `<div class="table-container" style="max-height:500px;"><table><thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Tabel</th><th>Record ID</th></tr></thead><tbody>` +
         logs.map(l => `<tr><td>${esc(l.timestamp)}</td><td>${esc(l.user_email)}</td><td><span class="badge badge-class-active">${esc(l.action)}</span></td><td>${esc(l.table_name)}</td><td><code>${esc(l.record_id)}</code></td></tr>`).join('') + '</tbody></table></div>';
     }
   } catch (e) { c.innerHTML = '<p style="color:var(--danger);">Gagal memuat tab admin.</p>'; }
+}
+
+function openUserModal(existingUser = null) {
+  openModal('tpl-modal-user-form');
+  const root = document.getElementById('modal-root');
+  const form = root.querySelector('#form-user');
+  const title = root.querySelector('#user-modal-title');
+  const emailInput = form.querySelector('input[name="email"]');
+  const nameInput = form.querySelector('input[name="full_name"]');
+  const roleSelect = form.querySelector('select[name="role"]');
+  const centersDiv = form.querySelector('#user-centers');
+  const activeInput = form.querySelector('input[name="is_active"]');
+
+  const roles = (state.roles && state.roles.length) ? state.roles : ['HQ', 'CM', 'SA', 'TEACHER', 'LEAD_TEACHER'];
+  roleSelect.innerHTML = roles.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+
+  centersDiv.innerHTML = (state.centers || []).map(c => `
+    <label style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;cursor:pointer;font-weight:normal;">
+      <input type="checkbox" name="user_center_code" value="${esc(c.center_code)}" style="width:auto;"> ${esc(c.center_name)} (${esc(c.center_code)})
+    </label>
+  `).join('');
+
+  if (existingUser) {
+    title.textContent = 'Edit Pengguna';
+    emailInput.value = existingUser.email;
+    emailInput.disabled = true;
+    nameInput.value = existingUser.full_name || '';
+    roleSelect.value = existingUser.role || 'TEACHER';
+    const codes = (existingUser.center_codes || '').split(',').map(s => s.trim()).filter(Boolean);
+    centersDiv.querySelectorAll('input[name="user_center_code"]').forEach(cb => {
+      cb.checked = codes.includes(cb.value);
+    });
+    activeInput.checked = existingUser.is_active === true || String(existingUser.is_active).toLowerCase() === 'true';
+  } else {
+    title.textContent = 'Tambah Pengguna Baru';
+    emailInput.value = '';
+    emailInput.disabled = false;
+    nameInput.value = '';
+    roleSelect.value = 'TEACHER';
+    activeInput.checked = true;
+  }
+
+  root.querySelector('#btn-submit-user').addEventListener('click', async () => {
+    const email = (existingUser ? existingUser.email : emailInput.value).trim().toLowerCase();
+    const fullName = nameInput.value.trim();
+    const role = roleSelect.value;
+    const checkedCenters = Array.from(centersDiv.querySelectorAll('input[name="user_center_code"]:checked')).map(cb => cb.value);
+    const center_codes = checkedCenters.join(',');
+    const isActive = activeInput.checked;
+
+    if (!email) return showToast('Email pengguna wajib diisi.', 'error');
+    if (!fullName) return showToast('Nama lengkap wajib diisi.', 'error');
+
+    const payload = {
+      email: email,
+      full_name: fullName,
+      role: role,
+      center_codes: center_codes,
+      is_active: isActive
+    };
+
+    try {
+      await api('saveUser', payload);
+      showToast(existingUser ? 'Pengguna berhasil diperbarui.' : 'Pengguna berhasil ditambahkan.');
+      closeModal();
+      loadAdminTab('users');
+    } catch (e) {}
+  });
+}
+
+function openCenterModal(existingCenter = null) {
+  openModal('tpl-modal-center-form');
+  const root = document.getElementById('modal-root');
+  const form = root.querySelector('#form-center');
+  const title = root.querySelector('#center-modal-title');
+  const codeInput = form.querySelector('input[name="center_code"]');
+  const noInput = form.querySelector('input[name="center_no"]');
+  const nameInput = form.querySelector('input[name="center_name"]');
+  const activeInput = form.querySelector('input[name="is_active"]');
+
+  if (existingCenter) {
+    title.textContent = 'Edit Cabang';
+    codeInput.value = existingCenter.center_code;
+    codeInput.disabled = true;
+    noInput.value = existingCenter.center_no || '01';
+    nameInput.value = existingCenter.center_name || '';
+    activeInput.checked = existingCenter.is_active === true || String(existingCenter.is_active).toLowerCase() === 'true';
+  } else {
+    title.textContent = 'Tambah Cabang Baru';
+    codeInput.value = '';
+    codeInput.disabled = false;
+    noInput.value = '01';
+    nameInput.value = '';
+    activeInput.checked = true;
+  }
+
+  root.querySelector('#btn-submit-center').addEventListener('click', async () => {
+    const code = (existingCenter ? existingCenter.center_code : codeInput.value).trim().toUpperCase();
+    const name = nameInput.value.trim();
+    const no = (noInput.value || '01').trim();
+    const isActive = activeInput.checked;
+
+    if (!code) return showToast('Kode cabang wajib diisi.', 'error');
+    if (!name) return showToast('Nama cabang wajib diisi.', 'error');
+
+    const payload = {
+      center_code: code,
+      center_no: no,
+      center_name: name,
+      is_active: isActive
+    };
+
+    try {
+      await api('saveCenter', payload);
+      if (!state.centers) state.centers = [];
+      const idx = state.centers.findIndex(c => c.center_code === payload.center_code);
+      if (idx >= 0) {
+        state.centers[idx] = Object.assign({}, state.centers[idx], payload);
+      } else {
+        state.centers.push(payload);
+      }
+      showToast(existingCenter ? 'Cabang berhasil diperbarui.' : 'Cabang berhasil ditambahkan.');
+      closeModal();
+      loadAdminTab('centers');
+    } catch (e) {}
+  });
+}
+
+function openProgramModal(existingProgram = null) {
+  openModal('tpl-modal-program-form');
+  const root = document.getElementById('modal-root');
+  const form = root.querySelector('#form-program');
+  const title = root.querySelector('#program-modal-title');
+  const progInput = form.querySelector('input[name="program"]');
+  const lvlInput = form.querySelector('input[name="level"]');
+  const orderInput = form.querySelector('input[name="level_order"]');
+  const smallInput = form.querySelector('input[name="next_small_level"]');
+  const bigInput = form.querySelector('input[name="next_big_level"]');
+
+  if (existingProgram) {
+    title.textContent = 'Edit Program/Level';
+    progInput.value = existingProgram.program;
+    progInput.disabled = true;
+    lvlInput.value = existingProgram.level;
+    lvlInput.disabled = true;
+    orderInput.value = existingProgram.level_order !== undefined ? existingProgram.level_order : 1;
+    smallInput.value = existingProgram.next_small_level || '';
+    bigInput.value = existingProgram.next_big_level || '';
+  } else {
+    title.textContent = 'Tambah Program/Level';
+    progInput.value = '';
+    progInput.disabled = false;
+    lvlInput.value = '';
+    lvlInput.disabled = false;
+    orderInput.value = 1;
+    smallInput.value = '';
+    bigInput.value = '';
+  }
+
+  root.querySelector('#btn-submit-program').addEventListener('click', async () => {
+    const program = (existingProgram ? existingProgram.program : progInput.value).trim();
+    const level = (existingProgram ? existingProgram.level : lvlInput.value).trim();
+    const levelOrder = orderInput.value;
+    const nextSmall = smallInput.value.trim();
+    const nextBig = bigInput.value.trim();
+
+    if (!program) return showToast('Program wajib diisi.', 'error');
+    if (!level) return showToast('Level wajib diisi.', 'error');
+    if (levelOrder === '' || isNaN(Number(levelOrder))) return showToast('Urutan level wajib berupa angka.', 'error');
+
+    const payload = {
+      program: program,
+      level: level,
+      level_order: Number(levelOrder),
+      next_small_level: nextSmall,
+      next_big_level: nextBig
+    };
+
+    try {
+      await api('saveProgramLevel', payload);
+      showToast(existingProgram ? 'Program/level berhasil diperbarui.' : 'Program/level berhasil ditambahkan.');
+      closeModal();
+      loadAdminTab('programs');
+    } catch (e) {}
+  });
+}
+
+function openHolidayModal() {
+  openModal('tpl-modal-holiday-form');
+  const root = document.getElementById('modal-root');
+  const form = root.querySelector('#form-holiday');
+  const centerSelect = form.querySelector('select[name="center_code"]');
+  populateCenterOptions(centerSelect);
+
+  root.querySelector('#btn-submit-holiday').addEventListener('click', async () => {
+    const date = form.querySelector('input[name="date"]').value;
+    const centerCode = centerSelect.value;
+    const description = form.querySelector('input[name="description"]').value.trim();
+
+    if (!date) return showToast('Tanggal libur wajib diisi.', 'error');
+    if (!description) return showToast('Keterangan libur wajib diisi.', 'error');
+
+    const payload = {
+      date: date,
+      center_code: centerCode,
+      description: description
+    };
+
+    try {
+      await api('saveHoliday', payload);
+      showToast('Hari libur berhasil disimpan.');
+      closeModal();
+      loadAdminTab('holidays');
+    } catch (e) {}
+  });
 }
 
 function populateCenterOptions(selectEl) {
@@ -1108,6 +1498,7 @@ async function initApp() {
     state.user = b.user;
     state.nav = b.nav || [];
     state.dbReady = b.dbReady;
+    state.roles = (b.roles && b.roles.length) ? b.roles : ['HQ', 'CM', 'SA', 'TEACHER', 'LEAD_TEACHER'];
 
     const fv = document.getElementById('footer-version');
     if (fv) fv.textContent = 'v' + b.version;

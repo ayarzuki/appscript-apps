@@ -287,6 +287,71 @@ const Db = {
   },
 
   /**
+   * Updates the first record matching a predicate function inside a lock.
+   * @param {string} table
+   * @param {Function} predicate
+   * @param {Object} patch Fields to update
+   * @param {string} userEmail
+   * @return {Object|null} Updated record
+   */
+  updateWhere(table, predicate, patch, userEmail) {
+    return withLock_(() => {
+      const sheet = this.sheet_(table);
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
+      if (lastRow <= 1) return null;
+
+      const rawValues = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+      const headers = rawValues[0];
+
+      let targetRowIdx = -1;
+      let beforeObj = null;
+
+      for (let r = 1; r < rawValues.length; r++) {
+        const rowObj = {};
+        for (let c = 0; c < headers.length; c++) {
+          rowObj[headers[c]] = rawValues[r][c];
+        }
+        if (predicate(rowObj) === true) {
+          targetRowIdx = r + 1; // 1-based row index in sheet
+          beforeObj = rowObj;
+          break;
+        }
+      }
+
+      if (targetRowIdx === -1) return null;
+
+      const nowIso = toIsoDateTime_(new Date());
+      const afterObj = Object.assign({}, beforeObj, patch, {
+        updated_at: nowIso,
+        updated_by: userEmail || 'system'
+      });
+
+      const updatedRowValues = [headers.map(h => (h in afterObj && afterObj[h] !== undefined && afterObj[h] !== null ? afterObj[h] : ''))];
+      sheet.getRange(targetRowIdx, 1, 1, headers.length).setValues(updatedRowValues);
+
+      if (table !== 'audit_log') {
+        const recordId = beforeObj.id !== undefined ? String(beforeObj.id) : String(beforeObj[headers[0]] || '');
+        this.auditUnlocked_(userEmail || 'system', 'UPDATE', table, recordId, beforeObj, afterObj);
+      }
+
+      return afterObj;
+    });
+  },
+
+  /**
+   * Performs soft deletion on the first record matching a predicate function.
+   * @param {string} table
+   * @param {Function} predicate
+   * @param {string} userEmail
+   * @return {boolean}
+   */
+  softDeleteWhere(table, predicate, userEmail) {
+    const updated = this.updateWhere(table, predicate, { is_deleted: true }, userEmail);
+    return Boolean(updated);
+  },
+
+  /**
    * Internal unlocked audit helper.
    */
   auditUnlocked_(userEmail, action, tableName, recordId, before, after) {
@@ -362,6 +427,8 @@ const Db = {
   }
 };
 
+let lockDepth_ = 0;
+
 /**
  * Global LockService execution helper.
  * Waits up to 30 seconds for the lock.
@@ -369,11 +436,14 @@ const Db = {
  * @return {*}
  */
 function withLock_(fn) {
+  if (lockDepth_ > 0) return fn(); // lock already held by this execution
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
+  lockDepth_++;
   try {
     return fn();
   } finally {
+    lockDepth_--;
     lock.releaseLock();
   }
 }

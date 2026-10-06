@@ -1052,3 +1052,149 @@
     </div>
   </div>
 </template>
+
+<!-- Modal: User Form -->
+<template id="tpl-modal-user-form">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title" id="user-modal-title">Tambah Pengguna Baru</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-user" class="form-grid">
+        <div class="form-group full-width">
+          <label>Email *</label>
+          <input type="email" name="email" required placeholder="user@seven-retail.com">
+        </div>
+        <div class="form-group full-width">
+          <label>Nama Lengkap *</label>
+          <input type="text" name="full_name" required placeholder="Nama lengkap">
+        </div>
+        <div class="form-group full-width">
+          <label>Peran (Role) *</label>
+          <select name="role" required></select>
+        </div>
+        <div class="form-group full-width">
+          <label>Akses Cabang</label>
+          <div id="user-centers" class="checkbox-group"></div>
+          <small style="color: var(--text-muted); font-size: 12px; margin-top: 4px; display: block;">Kosongkan = akses semua cabang</small>
+        </div>
+        <div class="form-group full-width">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal;">
+            <input type="checkbox" name="is_active" checked style="width: auto;"> Aktif
+          </label>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-user" type="button">Simpan Pengguna</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Center Form -->
+<template id="tpl-modal-center-form">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title" id="center-modal-title">Tambah Cabang Baru</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-center" class="form-grid">
+        <div class="form-group">
+          <label>Kode Cabang *</label>
+          <input type="text" name="center_code" required placeholder="mis. BTR">
+        </div>
+        <div class="form-group">
+          <label>Nomor Cabang</label>
+          <input type="text" name="center_no" value="01" placeholder="mis. 01">
+        </div>
+        <div class="form-group full-width">
+          <label>Nama Cabang *</label>
+          <input type="text" name="center_name" required placeholder="mis. Bintaro">
+        </div>
+        <div class="form-group full-width">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal;">
+            <input type="checkbox" name="is_active" checked style="width: auto;"> Aktif
+          </label>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-center" type="button">Simpan Cabang</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Program & Level Form -->
+<template id="tpl-modal-program-form">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title" id="program-modal-title">Tambah Program/Level</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-program" class="form-grid">
+        <div class="form-group">
+          <label>Program *</label>
+          <input type="text" name="program" required placeholder="mis. Math">
+        </div>
+        <div class="form-group">
+          <label>Level *</label>
+          <input type="text" name="level" required placeholder="mis. 1A">
+        </div>
+        <div class="form-group full-width">
+          <label>Urutan Level (Order) *</label>
+          <input type="number" name="level_order" required value="1" min="1">
+        </div>
+        <div class="form-group">
+          <label>Naik Kecil (Next Small Level)</label>
+          <input type="text" name="next_small_level" placeholder="mis. 1B">
+        </div>
+        <div class="form-group">
+          <label>Naik Besar (Next Big Level)</label>
+          <input type="text" name="next_big_level" placeholder="mis. 2A">
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-program" type="button">Simpan Program/Level</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Holiday Form -->
+<template id="tpl-modal-holiday-form">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title" id="holiday-modal-title">Tambah Hari Libur</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-holiday" class="form-grid">
+        <div class="form-group">
+          <label>Tanggal Libur *</label>
+          <input type="date" name="date" required>
+        </div>
+        <div class="form-group">
+          <label>Cabang</label>
+          <select name="center_code">
+            <option value="">Semua Cabang</option>
+          </select>
+        </div>
+        <div class="form-group full-width">
+          <label>Keterangan Libur *</label>
+          <input type="text" name="description" required placeholder="mis. Hari Raya Idul Fitri">
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-holiday" type="button">Simpan Hari Libur</button>
+    </div>
+  </div>
+</template>
+

@@ -1,0 +1,27 @@
+STATUS: done
+FILES:    [src/Db.gs](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/src/Db.gs) — added `lockDepth_` counter and re-entrant guard in [`withLock_`](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/src/Db.gs#L436-L448); [admin-sim.js](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/admin-sim.js) — hardened `LockService` mock with `mockLockHeld` to throw on nested/contended acquire
+GUARD-OFF-TEST:
+FAIL S2 — saveUser update (same email, change role->LEAD_TEACHER + full_name) -> SAME row updated in place, no new row (LockService: nested/contended acquire in same execution)
+FAIL S3 — saveProgramLevel composite fix: seed Math levels 1/2/3; edit level 2 -> level 2 changed AND levels 1 & 3 untouched (LockService: nested/contended acquire in same execution)
+FAIL S4 — deleteHoliday composite fix: seed 2026-12-25 BTR + 2026-12-25 KLM; delete (2026-12-25, KLM) -> KLM deleted, BTR untouched (LockService: nested/contended acquire in same execution)
+RESULT: FAIL (3/5 failed)
+ADMIN-SIM:
+PASS S4 — deleteHoliday composite fix: seed 2026-12-25 BTR + 2026-12-25 KLM; delete (2026-12-25, KLM) -> KLM deleted, BTR untouched
+PASS S5 — listTeachers('BTR') with tA (all), tB (BTR), tC (KLM inactive), lT (BTR LEAD_TEACHER) -> returns tA, tB, lT
+
+RESULT: PASS (5 scenarios)
+UI-SIM:
+PASS click TEACHER penilaian
+PASS click TEACHER media
+
+RESULT: PASS (11 HQ clicks + 8 admin CRUD steps + 4 TEACHER clicks)
+LOGIN:
+PASS S7 — is_active stored as string 'TRUE'
+
+RESULT: PASS (7 scenarios)
+VERIFY:
+PASS warnings evaluated
+
+=========================================
+RESULT: PASS — 0 failure(s), 2 warning(s)
+NOTES:   none

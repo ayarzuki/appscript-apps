@@ -145,7 +145,7 @@ function saveProgramLevel(form) {
     let result;
 
     if (existing) {
-      result = Db.update('programs_levels', 'program', form.program, {
+      result = Db.updateWhere('programs_levels', pl => pl.program === form.program && pl.level === form.level, {
         level_order: form.level_order !== undefined ? Number(form.level_order) : existing.level_order,
         next_small_level: form.next_small_level || existing.next_small_level,
         next_big_level: form.next_big_level || existing.next_big_level
@@ -217,12 +217,12 @@ function deleteHoliday(date, centerCode) {
   const targetCenter = centerCode ? String(centerCode).trim().toUpperCase() : '';
 
   return withLock_(() => {
-    const match = Db.findOne('holidays', h =>
-      toIsoDate_(h.date) === dateIso && (h.center_code || '') === targetCenter
+    const deleted = Db.softDeleteWhere('holidays', h =>
+      toIsoDate_(h.date) === dateIso && (h.center_code || '') === targetCenter,
+      user.email
     );
-    if (!match) throw new Error('Data libur tidak ditemukan.');
+    if (!deleted) throw new Error('Data libur tidak ditemukan.');
 
-    const deleted = Db.softDelete('holidays', 'date', match.date, user.email);
     Db.invalidate_('holidays');
     return deleted;
   });

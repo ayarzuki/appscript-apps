@@ -242,6 +242,25 @@ console.log('== 7c. routing sandbox-safety ==');
   const uiSim = read(path.join(ROOT, 'ui-sim.js')) !== null;
   if (uiSim) ok('ui-sim.js present'); else warn('ui-sim.js (UI click-through harness) not present');
 }
+
+console.log('== 7d. admin CRUD UI wiring ==');
+{
+  const s = texts['Scripts.html'];
+  if (s) {
+    for (const m of ['saveUser', 'toggleUser', 'saveCenter', 'saveHoliday', 'saveProgramLevel', 'deleteHoliday']) {
+      const re = new RegExp('api\\([\'"]' + m + '[\'"]');
+      if (re.test(s)) ok('Scripts.html wires api(\'' + m + '\')'); else fail('Scripts.html missing api(\'' + m + '\') — admin CRUD UI not wired');
+    }
+  }
+  const v = texts['Views.html'];
+  if (v) {
+    for (const tpl of ['tpl-modal-user-form', 'tpl-modal-center-form', 'tpl-modal-program-form', 'tpl-modal-holiday-form']) {
+      if (v.includes('template id="' + tpl + '"')) ok('Views.html has ' + tpl); else fail('Views.html missing template ' + tpl);
+    }
+  }
+  const adminSim = read(path.join(ROOT, 'admin-sim.js')) !== null;
+  if (adminSim) ok('admin-sim.js present'); else warn('admin-sim.js (server data harness) not present');
+}
 {
   const gsAll = REQUIRED_FILES.filter((x) => x.endsWith('.gs')).map((f) => texts[f] || '');
   const withRole = gsAll.filter((t) => t.includes('requireRole_')).length;

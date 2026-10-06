@@ -173,7 +173,8 @@ function getAppBootstrap() {
         role: activeUser.role,
         centers: centerList
       },
-      nav: nav
+      nav: nav,
+      roles: ROLES.slice()
     };
   } catch (err) {
     console.error('getAppBootstrap error: ' + err.message);
