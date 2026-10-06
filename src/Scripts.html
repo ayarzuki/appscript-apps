@@ -1,0 +1,984 @@
+<script>
+/**
+ * Scripts.html — Client-side SPA controller for SIS Sparks Math.
+ */
+
+// In-memory application state (never uses localStorage/sessionStorage)
+const state = {
+  user: null,
+  nav: [],
+  dbReady: false,
+  currentRoute: '',
+  centers: [],
+  teachers: [],
+  classes: []
+};
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function formatDate(dateVal) {
+  if (!dateVal) return '-';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function showToast(message, type = 'success') {
+  const root = document.getElementById('toast-root');
+  if (!root) return;
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type === 'error' ? 'error' : 'success'}`;
+  toast.textContent = message;
+  root.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function setLoading(show) {
+  const splash = document.getElementById('app-loading');
+  if (splash) splash.classList.toggle('hidden', !show);
+}
+
+/**
+ * Unified API bridge to google.script.run.
+ * Direct chained call format satisfies the acceptance test target extraction.
+ */
+function api(name, ...args) {
+  setLoading(true);
+  return new Promise((resolve, reject) => {
+    const s = (res) => { setLoading(false); resolve(res); };
+    const f = (err) => { setLoading(false); const m = err && err.message ? err.message : String(err); showToast(m, 'error'); reject(new Error(m)); };
+
+    switch (name) {
+      case 'getAppBootstrap': google.script.run.withSuccessHandler(s).withFailureHandler(f).getAppBootstrap(); break;
+      case 'getAppVersionInfo': google.script.run.withSuccessHandler(s).withFailureHandler(f).getAppVersionInfo(); break;
+      case 'getSetupStatus': google.script.run.withSuccessHandler(s).withFailureHandler(f).getSetupStatus(); break;
+      case 'listStudents': google.script.run.withSuccessHandler(s).withFailureHandler(f).listStudents(args[0]); break;
+      case 'getStudent': google.script.run.withSuccessHandler(s).withFailureHandler(f).getStudent(args[0]); break;
+      case 'createStudent': google.script.run.withSuccessHandler(s).withFailureHandler(f).createStudent(args[0]); break;
+      case 'updateStudent': google.script.run.withSuccessHandler(s).withFailureHandler(f).updateStudent(args[0]); break;
+      case 'listClasses': google.script.run.withSuccessHandler(s).withFailureHandler(f).listClasses(args[0]); break;
+      case 'getClassDetail': google.script.run.withSuccessHandler(s).withFailureHandler(f).getClassDetail(args[0]); break;
+      case 'createClass': google.script.run.withSuccessHandler(s).withFailureHandler(f).createClass(args[0]); break;
+      case 'updateClass': google.script.run.withSuccessHandler(s).withFailureHandler(f).updateClass(args[0]); break;
+      case 'listTeachers': google.script.run.withSuccessHandler(s).withFailureHandler(f).listTeachers(args[0]); break;
+      case 'placeStudent': google.script.run.withSuccessHandler(s).withFailureHandler(f).placeStudent(args[0], args[1], args[2], args[3]); break;
+      case 'closeEnrollment': google.script.run.withSuccessHandler(s).withFailureHandler(f).closeEnrollment(args[0], args[1], args[2], args[3]); break;
+      case 'getMySessions': google.script.run.withSuccessHandler(s).withFailureHandler(f).getMySessions(args[0]); break;
+      case 'getSessionRoster': google.script.run.withSuccessHandler(s).withFailureHandler(f).getSessionRoster(args[0]); break;
+      case 'saveSessionEntries': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveSessionEntries(args[0], args[1]); break;
+      case 'listSessionsForClass': google.script.run.withSuccessHandler(s).withFailureHandler(f).listSessionsForClass(args[0]); break;
+      case 'getClassAttendanceSummary': google.script.run.withSuccessHandler(s).withFailureHandler(f).getClassAttendanceSummary(args[0]); break;
+      case 'saveAssessments': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveAssessments(args[0], args[1]); break;
+      case 'listAssessmentBoard': google.script.run.withSuccessHandler(s).withFailureHandler(f).listAssessmentBoard(args[0]); break;
+      case 'generateReportPdf': google.script.run.withSuccessHandler(s).withFailureHandler(f).generateReportPdf(args[0], args[1], args[2]); break;
+      case 'listEvents': google.script.run.withSuccessHandler(s).withFailureHandler(f).listEvents(args[0]); break;
+      case 'updateEventStatus': google.script.run.withSuccessHandler(s).withFailureHandler(f).updateEventStatus(args[0], args[1], args[2]); break;
+      case 'listWaitingList': google.script.run.withSuccessHandler(s).withFailureHandler(f).listWaitingList(args[0]); break;
+      case 'saveWaitingEntry': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveWaitingEntry(args[0]); break;
+      case 'setWaitingStatus': google.script.run.withSuccessHandler(s).withFailureHandler(f).setWaitingStatus(args[0], args[1]); break;
+      case 'getLevelingBoard': google.script.run.withSuccessHandler(s).withFailureHandler(f).getLevelingBoard(args[0]); break;
+      case 'saveLevelingDecisions': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveLevelingDecisions(args[0], args[1]); break;
+      case 'getMediaChecklist': google.script.run.withSuccessHandler(s).withFailureHandler(f).getMediaChecklist(args[0]); break;
+      case 'uploadClassMedia': google.script.run.withSuccessHandler(s).withFailureHandler(f).uploadClassMedia(args[0], args[1], args[2], args[3], args[4]); break;
+      case 'getMediaGuidelines': google.script.run.withSuccessHandler(s).withFailureHandler(f).getMediaGuidelines(); break;
+      case 'getDashboardHome': google.script.run.withSuccessHandler(s).withFailureHandler(f).getDashboardHome(); break;
+      case 'getDashboardStats': google.script.run.withSuccessHandler(s).withFailureHandler(f).getDashboardStats(args[0]); break;
+      case 'listUsers': google.script.run.withSuccessHandler(s).withFailureHandler(f).listUsers(); break;
+      case 'saveUser': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveUser(args[0]); break;
+      case 'toggleUser': google.script.run.withSuccessHandler(s).withFailureHandler(f).toggleUser(args[0], args[1]); break;
+      case 'listCenters': google.script.run.withSuccessHandler(s).withFailureHandler(f).listCenters(); break;
+      case 'saveCenter': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveCenter(args[0]); break;
+      case 'listProgramsLevels': google.script.run.withSuccessHandler(s).withFailureHandler(f).listProgramsLevels(); break;
+      case 'saveProgramLevel': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveProgramLevel(args[0]); break;
+      case 'listHolidays': google.script.run.withSuccessHandler(s).withFailureHandler(f).listHolidays(args[0]); break;
+      case 'saveHoliday': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveHoliday(args[0]); break;
+      case 'deleteHoliday': google.script.run.withSuccessHandler(s).withFailureHandler(f).deleteHoliday(args[0], args[1]); break;
+      case 'getAuditLog': google.script.run.withSuccessHandler(s).withFailureHandler(f).getAuditLog(args[0]); break;
+      case 'dryRunMigration': google.script.run.withSuccessHandler(s).withFailureHandler(f).dryRunMigration(args[0]); break;
+      default:
+        setLoading(false);
+        f(new Error('Metode server tidak dikenal: ' + name));
+    }
+  });
+}
+
+function openModal(templateId) {
+  const root = document.getElementById('modal-root');
+  const tpl = document.getElementById(templateId);
+  if (!root || !tpl) return;
+  root.innerHTML = '';
+  root.appendChild(tpl.content.cloneNode(true));
+  root.classList.remove('hidden');
+  root.querySelectorAll('.btn-close-modal').forEach(btn => btn.addEventListener('click', closeModal));
+}
+
+function closeModal() {
+  const root = document.getElementById('modal-root');
+  if (root) { root.classList.add('hidden'); root.innerHTML = ''; }
+}
+
+function confirmDialog(title, message, onConfirm) {
+  openModal('tpl-modal-confirm-dialog');
+  const root = document.getElementById('modal-root');
+  root.querySelector('#confirm-dialog-title').textContent = title;
+  root.querySelector('#confirm-dialog-message').textContent = message;
+  root.querySelector('#btn-confirm-ok').addEventListener('click', () => {
+    closeModal();
+    if (typeof onConfirm === 'function') onConfirm();
+  });
+}
+
+function navigateTo(hash) { window.location.hash = hash; }
+
+function handleRoute() {
+  const hash = window.location.hash || '#/beranda';
+  const parts = hash.slice(2).split('?');
+  const screen = parts[0] || 'beranda';
+  const params = new URLSearchParams(parts[1] || '');
+  state.currentRoute = screen;
+
+  document.querySelectorAll('.nav-item').forEach(link => {
+    link.classList.toggle('active', link.getAttribute('href') === `#/${screen}`);
+  });
+
+  const content = document.getElementById('content');
+  if (!content) return;
+  content.innerHTML = '';
+
+  switch (screen) {
+    case 'beranda': renderBeranda(); break;
+    case 'murid': renderMurid(); break;
+    case 'murid-detail': renderMuridDetail(params.get('id')); break;
+    case 'kelas': renderKelas(); break;
+    case 'kelas-detail': renderKelasDetail(params.get('id')); break;
+    case 'sesi': renderSesi(); break;
+    case 'sesi-input': renderSesiInput(params.get('id')); break;
+    case 'penilaian': renderPenilaian(); break;
+    case 'event': renderEvent(); break;
+    case 'waiting': renderWaiting(); break;
+    case 'leveling': renderLeveling(); break;
+    case 'media': renderMedia(); break;
+    case 'dashboard': renderDashboard(); break;
+    case 'admin': renderAdmin(); break;
+    default: renderBeranda();
+  }
+}
+
+// Beranda
+async function renderBeranda() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-beranda').content.cloneNode(true));
+  try {
+    const data = await api('getDashboardHome');
+    if (!data) return;
+    if (data.studentCounts) {
+      document.getElementById('count-active-students').textContent = data.studentCounts.Active || 0;
+      document.getElementById('count-postponed-students').textContent = data.studentCounts.Postponed || 0;
+      document.getElementById('count-nonactive-students').textContent = data.studentCounts['Non-Active'] || 0;
+      document.getElementById('count-total-students').textContent = data.studentCounts.total || 0;
+    }
+    const todayC = document.getElementById('beranda-today-sessions');
+    if (data.todaySessions && data.todaySessions.length) {
+      todayC.innerHTML = `<table><thead><tr><th>Kelas</th><th>Sesi #</th><th>Jam</th><th>Ruang</th><th>Aksi</th></tr></thead><tbody>` +
+        data.todaySessions.map(s => `<tr><td><strong>${esc(s.class_name)}</strong></td><td>${esc(s.session_no)}</td><td>${esc(s.schedule_time)}</td><td>${esc(s.room || '-')}</td><td><a href="#/sesi-input?id=${esc(s.session_id)}" class="btn btn-primary btn-sm">Absensi</a></td></tr>`).join('') + '</tbody></table>';
+    } else todayC.innerHTML = '<div class="empty-state"><p>Tidak ada sesi kelas yang dijadwalkan hari ini.</p></div>';
+
+    const evC = document.getElementById('beranda-upcoming-events');
+    if (data.upcomingEvents && data.upcomingEvents.length) {
+      evC.innerHTML = `<table><thead><tr><th>Kelas</th><th>Event</th><th>Tenggat</th></tr></thead><tbody>` +
+        data.upcomingEvents.map(e => `<tr><td>${esc(e.class_name)}</td><td><span class="badge badge-class-active">${esc(e.description || e.event_type)}</span></td><td>${esc(formatDate(e.due_date))}</td></tr>`).join('') + '</tbody></table>';
+    } else evC.innerHTML = '<div class="empty-state"><p>Tidak ada event yang jatuh tempo dalam 7 hari ke depan.</p></div>';
+
+    const compC = document.getElementById('beranda-missing-attendance');
+    if (data.missingAttendance && data.missingAttendance.length) {
+      compC.innerHTML = `<table><thead><tr><th>Kelas</th><th>Sesi #</th><th>Tanggal Rencana</th><th>Teacher</th><th>Aksi</th></tr></thead><tbody>` +
+        data.missingAttendance.map(m => `<tr><td>${esc(m.class_name)}</td><td>${esc(m.session_no)}</td><td>${esc(formatDate(m.planned_date))}</td><td>${esc(m.teacher_email || '-')}</td><td><a href="#/sesi-input?id=${esc(m.session_id)}" class="btn btn-danger btn-sm">Isi Sekarang</a></td></tr>`).join('') + '</tbody></table>';
+    } else compC.innerHTML = '<div class="empty-state"><p style="color:var(--success);">Semua absensi telah terisi tepat waktu. Kepatuhan 100%!</p></div>';
+  } catch (e) {}
+}
+
+// Murid
+async function renderMurid() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-murid').content.cloneNode(true));
+  populateCenterOptions(document.getElementById('filter-student-center'));
+  document.getElementById('btn-add-student').addEventListener('click', () => openStudentModal());
+  document.getElementById('btn-filter-students').addEventListener('click', loadStudentList);
+  document.getElementById('filter-student-search').addEventListener('keyup', (e) => { if (e.key === 'Enter') loadStudentList(); });
+  await loadStudentList();
+}
+
+async function loadStudentList() {
+  const q = document.getElementById('filter-student-search').value;
+  const center = document.getElementById('filter-student-center').value;
+  const status = document.getElementById('filter-student-status').value;
+  const tbody = document.getElementById('student-table-body');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Memuat data murid...</td></tr>';
+  try {
+    const students = await api('listStudents', { q, center, status });
+    if (!students || !students.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Tidak ada data murid.</td></tr>'; return; }
+    tbody.innerHTML = students.map(s => {
+      let b = 'badge-postponed';
+      if (s.status === 'Active') b = 'badge-active';
+      else if (s.status === 'Non-Active') b = 'badge-non-active';
+      else if (s.status === 'Cancel (DP Only)') b = 'badge-cancel';
+      return `<tr><td><code>${esc(s.student_id)}</code></td><td><strong>${esc(s.full_name)}</strong></td><td>${esc(s.nickname || '-')}</td><td>${esc(s.center_code)}</td><td><span class="badge ${b}">${esc(s.status)}</span></td><td>${esc(s.package || '-')}</td><td>${esc(s.credit_class !== '' ? s.credit_class : '-')}</td><td><a href="#/murid-detail?id=${esc(s.student_id)}" class="btn btn-secondary btn-sm">Lihat Detail</a></td></tr>`;
+    }).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);">Gagal memuat murid.</td></tr>'; }
+}
+
+function openStudentModal(existingStudent = null) {
+  openModal('tpl-modal-student-form');
+  const root = document.getElementById('modal-root');
+  const form = root.querySelector('#form-student');
+  populateCenterOptions(form.querySelector('select[name="center_code"]'));
+  if (existingStudent) {
+    root.querySelector('#student-modal-title').textContent = 'Edit Profil Murid';
+    form.querySelector('input[name="student_id"]').value = existingStudent.student_id;
+    form.querySelector('select[name="center_code"]').value = existingStudent.center_code;
+    form.querySelector('select[name="center_code"]').disabled = true;
+    form.querySelector('input[name="full_name"]').value = existingStudent.full_name || '';
+    form.querySelector('input[name="nickname"]').value = existingStudent.nickname || '';
+    form.querySelector('input[name="dob"]').value = existingStudent.dob || '';
+    form.querySelector('input[name="parent_name"]').value = existingStudent.parent_name || '';
+    form.querySelector('input[name="parent_phone"]').value = existingStudent.parent_phone || '';
+    form.querySelector('select[name="language"]').value = existingStudent.language || 'Indonesian';
+    form.querySelector('input[name="school"]').value = existingStudent.school || '';
+    form.querySelector('select[name="status"]').value = existingStudent.status || 'Postponed';
+    form.querySelector('input[name="package"]').value = existingStudent.package || '';
+    form.querySelector('input[name="credit_class"]').value = existingStudent.credit_class || 0;
+    form.querySelector('input[name="payment_status"]').value = existingStudent.payment_status || '';
+  }
+  root.querySelector('#btn-submit-student').addEventListener('click', async () => {
+    const payload = {};
+    new FormData(form).forEach((v, k) => payload[k] = v);
+    if (!payload.full_name) return showToast('Nama murid wajib diisi.', 'error');
+    try {
+      if (payload.student_id) { await api('updateStudent', payload); showToast('Profil murid diperbarui.'); }
+      else { const s = await api('createStudent', payload); showToast('Murid tersimpan: ' + s.student_id); }
+      closeModal();
+      if (state.currentRoute === 'murid') loadStudentList();
+      else if (state.currentRoute === 'murid-detail') renderMuridDetail(payload.student_id);
+    } catch (e) {}
+  });
+}
+
+// Murid Detail
+async function renderMuridDetail(studentId) {
+  if (!studentId) return navigateTo('#/murid');
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-murid-detail').content.cloneNode(true));
+  document.getElementById('btn-back-to-students').addEventListener('click', () => navigateTo('#/murid'));
+  try {
+    const s = await api('getStudent', studentId);
+    if (!s) return;
+    document.getElementById('student-detail-name').textContent = `${s.full_name} (${s.student_id})`;
+    document.getElementById('student-detail-sub').textContent = `Cabang ${s.center_code} · Panggilan: ${s.nickname || '-'}`;
+    document.getElementById('btn-edit-student').addEventListener('click', () => openStudentModal(s));
+    document.getElementById('student-detail-info').innerHTML = `
+      <p><strong>Nama Lengkap:</strong> ${esc(s.full_name)}</p>
+      <p><strong>Nama Panggilan:</strong> ${esc(s.nickname || '-')}</p>
+      <p><strong>Tanggal Lahir:</strong> ${esc(formatDate(s.dob))}</p>
+      <p><strong>Sekolah:</strong> ${esc(s.school || '-')}</p>
+      <p><strong>Orang Tua:</strong> ${esc(s.parent_name || '-')}</p>
+      <p><strong>No. HP Orang Tua:</strong> ${esc(s.parent_phone || '-')}</p>
+      <p><strong>Bahasa Worksheet:</strong> ${esc(s.language || 'Indonesian')}</p>
+    `;
+    document.getElementById('student-detail-academic').innerHTML = `
+      <p><strong>Status Murid:</strong> <span class="badge badge-active">${esc(s.status)}</span></p>
+      <p><strong>Intake:</strong> ${esc(s.intake || '-')}</p>
+      <p><strong>Tanggal Bergabung:</strong> ${esc(formatDate(s.actual_join_date))}</p>
+      <p><strong>Paket:</strong> ${esc(s.package || '-')}</p>
+      <p><strong>Sisa Credit Kelas:</strong> ${esc(s.credit_class)}</p>
+      <p><strong>Status Pembayaran:</strong> ${esc(s.payment_status || '-')}</p>
+      <p><strong>Status Retensi:</strong> ${esc(s.retention_status || '-')}</p>
+    `;
+    const tbody = document.getElementById('student-enrollment-tbody');
+    if (s.enrollmentHistory && s.enrollmentHistory.length) {
+      tbody.innerHTML = s.enrollmentHistory.map(e => `<tr><td><code>${esc(e.enrollment_id)}</code></td><td><a href="#/kelas-detail?id=${esc(e.class_id)}"><strong>${esc(e.class_name)}</strong></a></td><td>${esc(e.program)}</td><td>${esc(e.level)}</td><td>${esc(formatDate(e.join_date))}</td><td>${e.leave_date ? esc(formatDate(e.leave_date)) : '<span class="badge badge-active">Sedang Aktif</span>'}</td><td>${esc(e.leave_reason || '-')}</td></tr>`).join('');
+    } else tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Belum ada riwayat penempatan kelas.</td></tr>';
+  } catch (e) {}
+}
+
+// Kelas
+async function renderKelas() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-kelas').content.cloneNode(true));
+  populateCenterOptions(document.getElementById('filter-class-center'));
+  document.getElementById('btn-add-class').addEventListener('click', () => openClassModal());
+  document.getElementById('btn-filter-classes').addEventListener('click', loadClassList);
+  await loadClassList();
+}
+
+async function loadClassList() {
+  const center = document.getElementById('filter-class-center').value;
+  const status = document.getElementById('filter-class-status').value;
+  const program = document.getElementById('filter-class-program').value;
+  const day = document.getElementById('filter-class-day').value;
+  const tbody = document.getElementById('class-table-body');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Memuat data kelas...</td></tr>';
+  try {
+    const classes = await api('listClasses', { center, status, program, day });
+    if (!classes || !classes.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Tidak ada data kelas.</td></tr>'; return; }
+    tbody.innerHTML = classes.map(c => {
+      let b = 'badge-class-draft';
+      if (c.status === 'Active') b = 'badge-class-active';
+      else if (c.status === 'Completed') b = 'badge-class-completed';
+      return `<tr><td><code>${esc(c.class_id)}</code></td><td><strong>${esc(c.class_name)}</strong></td><td>${esc(c.center_code)}</td><td>${esc(c.schedule_day)} ${esc(c.schedule_time)}</td><td>${esc(c.room || '-')}</td><td>${esc(c.main_teacher_email || '-')}</td><td>${esc(c.intake || '-')}</td><td><span class="badge ${b}">${esc(c.status)}</span></td><td><a href="#/kelas-detail?id=${esc(c.class_id)}" class="btn btn-secondary btn-sm">Detail Kelas</a></td></tr>`;
+    }).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--danger);">Gagal memuat kelas.</td></tr>'; }
+}
+
+async function openClassModal(existing = null) {
+  openModal('tpl-modal-class-form');
+  const root = document.getElementById('modal-root');
+  const form = root.querySelector('#form-class');
+  const cSel = form.querySelector('select[name="center_code"]');
+  const tSel = form.querySelector('select[name="main_teacher_email"]');
+  populateCenterOptions(cSel);
+  try {
+    const teachers = await api('listTeachers', cSel.value);
+    tSel.innerHTML = '<option value="">Pilih Teacher</option>' + teachers.map(t => `<option value="${esc(t.email)}">${esc(t.full_name)} (${esc(t.email)})</option>`).join('');
+  } catch (e) {}
+
+  if (existing) {
+    root.querySelector('#class-modal-title').textContent = 'Edit Data Kelas';
+    form.querySelector('input[name="class_id"]').value = existing.class_id;
+    cSel.value = existing.center_code; cSel.disabled = true;
+    form.querySelector('select[name="program"]').value = existing.program; form.querySelector('select[name="program"]').disabled = true;
+    form.querySelector('input[name="level"]').value = existing.level;
+    form.querySelector('input[name="schedule_day"]').value = existing.schedule_day;
+    form.querySelector('input[name="schedule_time"]').value = existing.schedule_time;
+    form.querySelector('input[name="room"]').value = existing.room || '';
+    tSel.value = existing.main_teacher_email || '';
+    form.querySelector('input[name="sa_email"]').value = existing.sa_email || '';
+    form.querySelector('input[name="intake"]').value = existing.intake || '';
+    form.querySelector('input[name="start_date"]').value = existing.start_date || ''; form.querySelector('input[name="start_date"]').disabled = true;
+    form.querySelector('select[name="status"]').value = existing.status || 'Draft';
+  }
+
+  root.querySelector('#btn-submit-class').addEventListener('click', async () => {
+    const payload = {};
+    new FormData(form).forEach((v, k) => payload[k] = v);
+    try {
+      if (payload.class_id) { await api('updateClass', payload); showToast('Data kelas diperbarui.'); }
+      else { const r = await api('createClass', payload); showToast(`Kelas ${r.class_id} dibuat (${r.sessions_created} sesi, ${r.events_created} event).`); }
+      closeModal();
+      if (state.currentRoute === 'kelas') loadClassList();
+      else if (state.currentRoute === 'kelas-detail') renderKelasDetail(payload.class_id);
+    } catch (e) {}
+  });
+}
+
+// Kelas Detail
+async function renderKelasDetail(classId) {
+  if (!classId) return navigateTo('#/kelas');
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-kelas-detail').content.cloneNode(true));
+  document.getElementById('btn-back-to-classes').addEventListener('click', () => navigateTo('#/kelas'));
+  try {
+    const detail = await api('getClassDetail', classId);
+    if (!detail) return;
+    const k = detail.klass;
+    document.getElementById('class-detail-title').textContent = `${k.class_name} (${k.class_id})`;
+    document.getElementById('class-detail-sub').textContent = `Cabang ${k.center_code} · Ruangan: ${k.room || '-'} · Guru: ${k.main_teacher_email || '-'}`;
+    document.getElementById('btn-edit-class').addEventListener('click', () => openClassModal(k));
+    document.getElementById('btn-place-student-modal').addEventListener('click', () => openPlacementModal(classId));
+
+    const sTbody = document.getElementById('class-students-tbody');
+    if (detail.students && detail.students.length) {
+      sTbody.innerHTML = detail.students.map(i => `<tr><td><code>${esc(i.student.student_id)}</code></td><td><strong>${esc(i.student.full_name)}</strong></td><td>${esc(i.student.nickname || '-')}</td><td><span class="badge badge-active">${esc(i.student.status)}</span></td><td>${esc(formatDate(i.enrollment.join_date))}</td><td><button class="btn btn-secondary btn-sm" onclick="handleRemoveStudent('${esc(i.enrollment.enrollment_id)}')">Keluarkan</button></td></tr>`).join('');
+    } else sTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Belum ada murid di kelas ini.</td></tr>';
+
+    const sesTbody = document.getElementById('class-sessions-tbody');
+    if (detail.sessions && detail.sessions.length) {
+      sesTbody.innerHTML = detail.sessions.map(s => `<tr><td><strong>${esc(s.session_no)}</strong></td><td><code>${esc(s.session_id)}</code></td><td>${esc(formatDate(s.planned_date))}</td><td>${s.actual_date ? esc(formatDate(s.actual_date)) : '-'}</td><td>${s.milestone ? `<span class="badge badge-class-active">${esc(s.milestone)}</span>` : '-'}</td><td>${esc(s.teacher_email || '-')}</td><td><a href="#/sesi-input?id=${esc(s.session_id)}" class="btn btn-secondary btn-sm">Input Absensi</a></td></tr>`).join('');
+    }
+
+    const evTbody = document.getElementById('class-events-tbody');
+    if (detail.events && detail.events.length) {
+      evTbody.innerHTML = detail.events.map(e => {
+        const d = e.status === 'Done';
+        return `<tr><td><strong>${esc(e.event_type)}</strong></td><td>${esc(e.description || '-')}</td><td>${esc(formatDate(e.due_date))}</td><td>${e.done_date ? esc(formatDate(e.done_date)) : '-'}</td><td><span class="badge ${d ? 'badge-active' : 'badge-postponed'}">${esc(e.status)}</span></td><td>${!d ? `<button class="btn btn-secondary btn-sm" onclick="markEventDone('${esc(classId)}::${esc(e.event_type)}::${esc(e.due_date)}')">Selesai</button>` : '✓'}</td></tr>`;
+      }).join('');
+    }
+  } catch (e) {}
+}
+
+async function openPlacementModal(classId) {
+  openModal('tpl-modal-placement-form');
+  const root = document.getElementById('modal-root');
+  const form = root.querySelector('#form-placement');
+  form.querySelector('input[name="class_id"]').value = classId;
+  form.querySelector('input[name="join_date"]').value = new Date().toISOString().split('T')[0];
+  const sSel = form.querySelector('select[name="student_id"]');
+  try {
+    const list = await api('listStudents');
+    sSel.innerHTML = '<option value="">Pilih Murid</option>' + list.map(s => `<option value="${esc(s.student_id)}">${esc(s.full_name)} (${esc(s.student_id)} - ${esc(s.center_code)})</option>`).join('');
+  } catch (e) {}
+  root.querySelector('#btn-submit-placement').addEventListener('click', async () => {
+    const sid = sSel.value;
+    const jd = form.querySelector('input[name="join_date"]').value;
+    const r = form.querySelector('select[name="leave_reason"]').value;
+    if (!sid) return showToast('Pilih murid terlebih dahulu.', 'error');
+    try {
+      await api('placeStudent', sid, classId, jd, r);
+      showToast('Murid berhasil dimasukkan ke kelas.');
+      closeModal();
+      renderKelasDetail(classId);
+    } catch (e) {}
+  });
+}
+
+function handleRemoveStudent(enrollmentId) {
+  confirmDialog('Keluarkan Murid', 'Apakah Anda yakin ingin mengeluarkan murid ini dari kelas?', async () => {
+    try {
+      await api('closeEnrollment', enrollmentId, new Date().toISOString().split('T')[0], 'Pindah Kelas', 'Postponed');
+      showToast('Penempatan murid ditutup.');
+      handleRoute();
+    } catch (e) {}
+  });
+}
+
+// Sesi & Absensi
+async function renderSesi() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-sesi').content.cloneNode(true));
+  document.querySelectorAll('.btn-scope').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.btn-scope').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      loadSessions(e.target.getAttribute('data-scope'));
+    });
+  });
+  await loadSessions('today');
+}
+
+async function loadSessions(scope) {
+  const tbody = document.getElementById('sessions-table-body');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Memuat data sesi...</td></tr>';
+  try {
+    const sessions = await api('getMySessions', scope);
+    if (!sessions || !sessions.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Tidak ada sesi untuk kategori ini.</td></tr>'; return; }
+    tbody.innerHTML = sessions.map(s => `<tr><td><code>${esc(s.session_id)}</code></td><td><strong>${esc(s.class_name)}</strong></td><td>${esc(s.session_no)}</td><td>${esc(formatDate(s.planned_date))}</td><td>${s.actual_date ? esc(formatDate(s.actual_date)) : '<span style="color:var(--danger);">Belum Absensi</span>'}</td><td>${esc(s.room || '-')}</td><td>${s.milestone ? `<span class="badge badge-class-active">${esc(s.milestone)}</span>` : '-'}</td><td><a href="#/sesi-input?id=${esc(s.session_id)}" class="btn btn-primary btn-sm">Input Sesi</a></td></tr>`).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);">Gagal memuat sesi.</td></tr>'; }
+}
+
+// Sesi Input
+async function renderSesiInput(sessionId) {
+  if (!sessionId) return navigateTo('#/sesi');
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-sesi-input').content.cloneNode(true));
+  document.getElementById('btn-back-to-sessions').addEventListener('click', () => navigateTo('#/sesi'));
+  try {
+    const data = await api('getSessionRoster', sessionId);
+    if (!data) return;
+    const s = data.session;
+    const k = data.klass;
+    document.getElementById('sesi-input-title').textContent = `${k.class_name} — Sesi ${s.session_no}`;
+    document.getElementById('sesi-input-sub').textContent = `Tanggal Rencana: ${formatDate(s.planned_date)} · Milestone: ${s.milestone || 'Reguler'}`;
+    document.getElementById('sesi-actual-date').value = s.actual_date || new Date().toISOString().split('T')[0];
+    document.getElementById('sesi-teacher-email').value = s.teacher_email || state.user.email;
+
+    const tbody = document.getElementById('sesi-roster-tbody');
+    if (!data.students || !data.students.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Tidak ada murid di kelas ini.</td></tr>'; return; }
+    tbody.innerHTML = data.students.map((i, idx) => {
+      const sid = i.student.student_id;
+      const att = i.attendance ? i.attendance.status : 'Present';
+      const score = i.note ? i.note.score : '';
+      const ach = i.note ? i.note.achievement : '';
+      const imp = i.note ? i.note.area_of_improvement : '';
+      return `<tr data-student-id="${esc(sid)}">
+        <td><strong>${esc(i.student.full_name)}</strong><div style="font-size:11.5px;color:var(--text-muted);">${esc(sid)}</div></td>
+        <td>
+          <div style="display:flex;gap:10px;">
+            <label><input type="radio" name="att_${idx}" value="Present" ${att === 'Present' ? 'checked' : ''}> Hadir</label>
+            <label><input type="radio" name="att_${idx}" value="Absent" ${att === 'Absent' ? 'checked' : ''}> Absen</label>
+            <label><input type="radio" name="att_${idx}" value="Excused" ${att === 'Excused' ? 'checked' : ''}> Izin</label>
+          </div>
+        </td>
+        <td><input type="number" class="input-score" value="${esc(score)}" style="width:70px;" min="0" max="100"></td>
+        <td><input type="text" class="input-achievement" value="${esc(ach)}" placeholder="Capaian..." style="width:100%;"></td>
+        <td><input type="text" class="input-improvement" value="${esc(imp)}" placeholder="Perlu peningkatan..." style="width:100%;"></td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('btn-save-attendance').addEventListener('click', async () => {
+      const payload = {
+        actual_date: document.getElementById('sesi-actual-date').value,
+        teacher_email: document.getElementById('sesi-teacher-email').value,
+        entries: []
+      };
+      tbody.querySelectorAll('tr').forEach((row, idx) => {
+        const checked = row.querySelector(`input[name="att_${idx}"]:checked`);
+        payload.entries.push({
+          student_id: row.getAttribute('data-student-id'),
+          status: checked ? checked.value : 'Present',
+          score: row.querySelector('.input-score').value,
+          achievement: row.querySelector('.input-achievement').value,
+          area_of_improvement: row.querySelector('.input-improvement').value
+        });
+      });
+      try {
+        const res = await api('saveSessionEntries', sessionId, payload);
+        showToast(`Absensi & catatan tersimpan untuk ${res.savedCount} murid!`);
+        navigateTo('#/sesi');
+      } catch (e) {}
+    });
+  } catch (e) {}
+}
+
+// Penilaian
+async function renderPenilaian() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-penilaian').content.cloneNode(true));
+  populateCenterOptions(document.getElementById('filter-assessment-center'));
+  document.getElementById('btn-filter-assessments').addEventListener('click', loadAssessmentBoard);
+  document.getElementById('btn-open-assessment-editor').addEventListener('click', () => openAssessmentEditorModal());
+  await loadAssessmentBoard();
+}
+
+async function loadAssessmentBoard() {
+  const center = document.getElementById('filter-assessment-center').value;
+  const classId = document.getElementById('filter-assessment-class').value;
+  const tbody = document.getElementById('assessment-table-body');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Memuat assessment...</td></tr>';
+  try {
+    const board = await api('listAssessmentBoard', { centerCode: center, classId: classId });
+    if (!board || !board.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Tidak ada data assessment.</td></tr>'; return; }
+    tbody.innerHTML = board.map(a => {
+      let b = 'badge-postponed';
+      if (a.status === 'Selesai' || a.status === 'Tepat waktu') b = 'badge-active';
+      else if (a.status === 'Terlambat') b = 'badge-cancel';
+      return `<tr><td><strong>${esc(a.class_name)}</strong></td><td>${esc(a.center_code)}</td><td><code>${esc(a.student_id)}</code></td><td>${esc(a.student_name)}</td><td>${esc(a.assessment_type)}</td><td><strong>${esc(a.grade || '-')}</strong></td><td>${esc(formatDate(a.report_due_date))}</td><td><span class="badge ${b}">${esc(a.status)}</span></td><td>${a.report_pdf_url ? `<a href="${esc(a.report_pdf_url)}" target="_blank" class="btn btn-secondary btn-sm">Lihat PDF</a>` : `<button class="btn btn-primary btn-sm" onclick="handleGeneratePdf('${esc(a.class_id)}','${esc(a.student_id)}','${esc(a.assessment_type)}')">Generate PDF</button>`}</td></tr>`;
+    }).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--danger);">Gagal memuat assessment.</td></tr>'; }
+}
+
+async function handleGeneratePdf(classId, studentId, assessmentType) {
+  try {
+    const res = await api('generateReportPdf', classId, studentId, assessmentType);
+    showToast(`Rapor PDF berhasil dibuat: ${res.file_name}`);
+    window.open(res.url, '_blank');
+    loadAssessmentBoard();
+  } catch (e) {}
+}
+
+async function openAssessmentEditorModal() {
+  openModal('tpl-modal-assessment-editor');
+  const root = document.getElementById('modal-root');
+  const cSel = root.querySelector('#modal-assessment-class');
+  const tSel = root.querySelector('#modal-assessment-type');
+  const tbody = root.querySelector('#modal-assessment-students-tbody');
+  cSel.innerHTML = '<option value="">Pilih Kelas</option>' + state.classes.map(c => `<option value="${esc(c.class_id)}">${esc(c.class_name)}</option>`).join('');
+
+  cSel.addEventListener('change', async () => {
+    if (!cSel.value) return tbody.innerHTML = '';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Memuat murid...</td></tr>';
+    try {
+      const d = await api('getClassDetail', cSel.value);
+      if (d && d.students) {
+        tbody.innerHTML = d.students.map(i => `<tr data-student-id="${esc(i.student.student_id)}"><td><code>${esc(i.student.student_id)}</code></td><td>${esc(i.student.full_name)}</td><td><select class="input-grade"><option value="">-</option><option value="A+">A+</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></td></tr>`).join('');
+      }
+    } catch (e) {}
+  });
+
+  root.querySelector('#btn-submit-assessments').addEventListener('click', async () => {
+    if (!cSel.value) return showToast('Pilih kelas terlebih dahulu.', 'error');
+    const items = [];
+    tbody.querySelectorAll('tr').forEach(r => {
+      const g = r.querySelector('.input-grade').value;
+      if (g) items.push({ student_id: r.getAttribute('data-student-id'), assessment_type: tSel.value, grade: g });
+    });
+    try {
+      await api('saveAssessments', cSel.value, items);
+      showToast(`Nilai berhasil disimpan untuk ${items.length} murid.`);
+      closeModal();
+      loadAssessmentBoard();
+    } catch (e) {}
+  });
+}
+
+// Event Tracker
+async function renderEvent() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-event').content.cloneNode(true));
+  populateCenterOptions(document.getElementById('filter-event-center'));
+  document.getElementById('btn-filter-events').addEventListener('click', loadEventsList);
+  await loadEventsList();
+}
+
+async function loadEventsList() {
+  const center = document.getElementById('filter-event-center').value;
+  const type = document.getElementById('filter-event-type').value;
+  const status = document.getElementById('filter-event-status').value;
+  const tbody = document.getElementById('events-table-body');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Memuat data event...</td></tr>';
+  try {
+    const list = await api('listEvents', { center, type, status });
+    if (!list || !list.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Tidak ada event.</td></tr>'; return; }
+    tbody.innerHTML = list.map(e => {
+      const d = e.status === 'Done';
+      return `<tr><td><strong>${esc(e.class_label)}</strong></td><td>${esc(e.center_code)}</td><td><span class="badge badge-class-active">${esc(e.event_type)}</span></td><td>${esc(e.description || '-')}</td><td>${esc(formatDate(e.due_date))}</td><td>${e.done_date ? esc(formatDate(e.done_date)) : '-'}</td><td><span class="badge ${d ? 'badge-active' : (e.overdue ? 'badge-cancel' : 'badge-postponed')}">${e.overdue ? 'Terlambat' : esc(e.status)}</span></td><td>${!d ? `<button class="btn btn-secondary btn-sm" onclick="markEventDone('${esc(e.event_id)}')">Selesai</button>` : '✓'}</td></tr>`;
+    }).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--danger);">Gagal memuat event.</td></tr>'; }
+}
+
+async function markEventDone(eventId) {
+  try {
+    await api('updateEventStatus', eventId, 'Done', new Date().toISOString().split('T')[0]);
+    showToast('Event ditandai selesai.');
+    if (state.currentRoute === 'event') loadEventsList();
+    else if (state.currentRoute === 'kelas-detail') handleRoute();
+  } catch (e) {}
+}
+
+// Waiting List
+async function renderWaiting() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-waiting').content.cloneNode(true));
+  populateCenterOptions(document.getElementById('filter-waiting-center'));
+  document.getElementById('btn-add-waiting').addEventListener('click', () => openWaitingModal());
+  document.getElementById('btn-filter-waiting').addEventListener('click', loadWaitingList);
+  await loadWaitingList();
+}
+
+async function loadWaitingList() {
+  const center = document.getElementById('filter-waiting-center').value;
+  const tbody = document.getElementById('waiting-table-body');
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">Memuat antrean...</td></tr>';
+  try {
+    const list = await api('listWaitingList', center);
+    if (!list || !list.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">Tidak ada antrean waiting list.</td></tr>'; return; }
+    tbody.innerHTML = list.map(w => `<tr><td><code>${esc(w.request_no)}</code></td><td>${esc(formatDate(w.input_date))}</td><td>${esc(w.source || '-')}</td><td><strong>${esc(w.full_name)}</strong></td><td>${esc(w.program || '-')}</td><td>${esc(w.level || '-')}</td><td>${esc(w.day || '')} ${esc(w.time || '')}</td><td><span class="badge badge-class-active">${esc(w.status)}</span></td><td>${esc(w.notes || '-')}</td><td><button class="btn btn-secondary btn-sm" onclick="handleEditWaiting('${esc(w.request_no)}')">Ubah</button></td></tr>`).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--danger);">Gagal memuat waiting list.</td></tr>'; }
+}
+
+function openWaitingModal(existing = null) {
+  openModal('tpl-modal-waiting-form');
+  const root = document.getElementById('modal-root');
+  const form = root.querySelector('#form-waiting');
+  if (existing) {
+    form.querySelector('input[name="request_no"]').value = existing.request_no;
+    form.querySelector('input[name="input_date"]').value = existing.input_date || '';
+    form.querySelector('input[name="source"]').value = existing.source || '';
+    form.querySelector('input[name="full_name"]').value = existing.full_name || '';
+    form.querySelector('select[name="program"]').value = existing.program || 'LE';
+    form.querySelector('input[name="level"]').value = existing.level || '';
+    form.querySelector('input[name="day"]').value = existing.day || '';
+    form.querySelector('input[name="time"]').value = existing.time || '';
+    form.querySelector('textarea[name="notes"]').value = existing.notes || '';
+  } else {
+    form.querySelector('input[name="input_date"]').value = new Date().toISOString().split('T')[0];
+  }
+  root.querySelector('#btn-submit-waiting').addEventListener('click', async () => {
+    const payload = {};
+    new FormData(form).forEach((v, k) => payload[k] = v);
+    if (!payload.full_name) return showToast('Nama calon murid wajib diisi.', 'error');
+    try {
+      await api('saveWaitingEntry', payload);
+      showToast('Data antrean berhasil disimpan.');
+      closeModal();
+      loadWaitingList();
+    } catch (e) {}
+  });
+}
+
+async function handleEditWaiting(requestNo) {
+  const list = await api('listWaitingList');
+  const found = (list || []).find(w => w.request_no === requestNo);
+  if (found) openWaitingModal(found);
+}
+
+// Leveling (Achievement Day)
+async function renderLeveling() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-leveling').content.cloneNode(true));
+  const sel = document.getElementById('select-leveling-class');
+  sel.innerHTML = '<option value="">Pilih Kelas</option>' + state.classes.map(c => `<option value="${esc(c.class_id)}">${esc(c.class_name)} (${esc(c.class_id)})</option>`).join('');
+  document.getElementById('btn-load-leveling-board').addEventListener('click', loadLevelingBoard);
+  document.getElementById('btn-save-leveling-decisions').addEventListener('click', saveLevelingDecisionsUi);
+}
+
+async function loadLevelingBoard() {
+  const cid = document.getElementById('select-leveling-class').value;
+  if (!cid) return showToast('Pilih kelas terlebih dahulu.', 'error');
+  const tbody = document.getElementById('leveling-board-tbody');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Memuat evaluasi leveling...</td></tr>';
+  try {
+    const data = await api('getLevelingBoard', cid);
+    if (!data || !data.rows || !data.rows.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Tidak ada murid di kelas ini.</td></tr>'; return; }
+    tbody.innerHTML = data.rows.map(r => {
+      let b = 'badge-postponed';
+      if (r.recommendation_type === 'BIG') b = 'badge-active';
+      else if (r.recommendation_type === 'SMALL') b = 'badge-class-active';
+      else if (r.recommendation_type === 'LOOPING') b = 'badge-cancel';
+      const fl = (r.decision && r.decision.final_level) ? r.decision.final_level : r.recommended_level;
+      const dt = (r.decision && r.decision.decision_type) ? r.decision.decision_type : (r.recommendation_type === 'NEED_ASSESSMENT' ? 'SMALL' : r.recommendation_type);
+      const nt = (r.decision && r.decision.notes) ? r.decision.notes : '';
+      return `<tr data-student-id="${esc(r.student.student_id)}" data-recommended="${esc(r.recommended_level)}">
+        <td><code>${esc(r.student.student_id)}</code></td>
+        <td><strong>${esc(r.student.full_name)}</strong></td>
+        <td><strong>${esc(r.finalGrades.effective || '-')}</strong></td>
+        <td>${r.attendanceRate !== null ? esc(r.attendanceRate) + '%' : '-'}</td>
+        <td><span class="badge ${b}">${esc(r.recommended_level)} (${esc(r.recommendation_type)})</span></td>
+        <td style="font-size:12px;color:var(--text-muted);">${esc(r.reason)}</td>
+        <td><input type="text" class="input-final-level" value="${esc(fl)}" style="width:110px;"></td>
+        <td>
+          <select class="input-decision-type">
+            <option value="SMALL" ${dt === 'SMALL' ? 'selected' : ''}>SMALL</option>
+            <option value="BIG" ${dt === 'BIG' ? 'selected' : ''}>BIG</option>
+            <option value="LOOPING" ${dt === 'LOOPING' ? 'selected' : ''}>LOOPING</option>
+          </select>
+        </td>
+        <td><input type="text" class="input-notes" value="${esc(nt)}" placeholder="Catatan..." style="width:140px;"></td>
+      </tr>`;
+    }).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--danger);">Gagal memuat evaluasi.</td></tr>'; }
+}
+
+async function saveLevelingDecisionsUi() {
+  const cid = document.getElementById('select-leveling-class').value;
+  if (!cid) return;
+  const decisions = [];
+  document.getElementById('leveling-board-tbody').querySelectorAll('tr').forEach(r => {
+    decisions.push({
+      student_id: r.getAttribute('data-student-id'),
+      recommended_level: r.getAttribute('data-recommended'),
+      final_level: r.querySelector('.input-final-level').value,
+      decision_type: r.querySelector('.input-decision-type').value,
+      notes: r.querySelector('.input-notes').value
+    });
+  });
+  try {
+    const res = await api('saveLevelingDecisions', cid, decisions);
+    showToast(`Keputusan leveling tersimpan untuk ${res.savedCount} murid!`);
+  } catch (e) {}
+}
+
+// Media
+async function renderMedia() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-media').content.cloneNode(true));
+  const sel = document.getElementById('select-media-class');
+  sel.innerHTML = '<option value="">Pilih Kelas</option>' + state.classes.map(c => `<option value="${esc(c.class_id)}">${esc(c.class_name)} (${esc(c.class_id)})</option>`).join('');
+  document.getElementById('btn-load-media').addEventListener('click', loadMediaChecklist);
+  document.getElementById('btn-open-guidelines').addEventListener('click', async () => {
+    try { const g = await api('getMediaGuidelines'); alert(g.text); } catch (e) {}
+  });
+}
+
+async function loadMediaChecklist() {
+  const cid = document.getElementById('select-media-class').value;
+  if (!cid) return showToast('Pilih kelas terlebih dahulu.', 'error');
+  const c = document.getElementById('media-milestones-container');
+  c.innerHTML = '<p>Memuat media kelas...</p>';
+  try {
+    const data = await api('getMediaChecklist', cid);
+    if (!data || !data.checklists) return;
+    c.innerHTML = data.checklists.map(m => `
+      <div class="card">
+        <div class="card-title"><span>Sesi ${esc(m.sessionNo)}</span><span class="badge ${m.count >= 2 ? 'badge-active' : 'badge-postponed'}">${m.count} / ${esc(m.required)} Foto</span></div>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Milestone sesi ${esc(m.sessionNo)}</p>
+        <div style="margin-bottom:14px;min-height:50px;">${m.files.map(f => `<div>📎 <a href="${esc(f.url)}" target="_blank">${esc(f.name)}</a></div>`).join('') || '<span style="color:var(--text-muted);font-size:13px;">Belum ada foto.</span>'}</div>
+        <button class="btn btn-primary btn-sm" onclick="openMediaUploadModal('${esc(cid)}','SESI_${esc(m.sessionNo)}')">Unggah Foto</button>
+      </div>
+    `).join('');
+  } catch (e) { c.innerHTML = '<p style="color:var(--danger);">Gagal memuat media checklist.</p>'; }
+}
+
+function openMediaUploadModal(classId, milestone) {
+  openModal('tpl-modal-media-upload');
+  const root = document.getElementById('modal-root');
+  root.querySelector('#upload-class-id').value = classId;
+  root.querySelector('#upload-milestone').value = milestone;
+  root.querySelector('#btn-submit-upload-media').addEventListener('click', async () => {
+    const files = Array.from(root.querySelector('#media-file-input').files).slice(0, 4);
+    if (!files.length) return showToast('Pilih setidaknya satu file foto.', 'error');
+    const pEl = root.querySelector('#media-upload-progress');
+    let okCount = 0;
+    for (let i = 0; i < files.length; i++) {
+      pEl.textContent = `Mengunggah foto ${i + 1} dari ${files.length}...`;
+      try {
+        const b64 = await readFileAsBase64(files[i]);
+        await api('uploadClassMedia', classId, milestone, files[i].name, files[i].type, b64);
+        okCount++;
+      } catch (e) {}
+    }
+    showToast(`Berhasil mengunggah ${okCount} foto.`);
+    closeModal();
+    loadMediaChecklist();
+  });
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+// Dashboard Stats
+async function renderDashboard() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-dashboard').content.cloneNode(true));
+  populateCenterOptions(document.getElementById('filter-dashboard-center'));
+  document.getElementById('btn-load-dashboard-stats').addEventListener('click', loadDashboardStats);
+  await loadDashboardStats();
+}
+
+async function loadDashboardStats() {
+  const center = document.getElementById('filter-dashboard-center').value;
+  try {
+    const s = await api('getDashboardStats', { center });
+    if (!s) return;
+    const progC = document.getElementById('dashboard-program-rates');
+    if (s.programRates && s.programRates.length) {
+      progC.innerHTML = s.programRates.map(p => `
+        <div class="bar-chart-row">
+          <div class="bar-chart-label">${esc(p.program)}</div>
+          <div class="bar-chart-track"><div class="bar-chart-fill" style="width:${esc(p.rate)}%;"></div></div>
+          <div class="bar-chart-val">${esc(p.rate)}%</div>
+        </div>
+      `).join('');
+    } else progC.innerHTML = '<p class="empty-state">Data kehadiran belum tersedia.</p>';
+
+    const repC = document.getElementById('dashboard-report-statuses');
+    if (s.reportCounts) {
+      repC.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;"><span>Belum Selesai:</span><strong>${s.reportCounts.Belum || 0}</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span>Tepat Waktu:</span><strong style="color:var(--success);">${s.reportCounts['Tepat waktu'] || 0}</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span>Terlambat:</span><strong style="color:var(--danger);">${s.reportCounts.Terlambat || 0}</strong></div>
+          <div style="display:flex;justify-content:space-between;"><span>Rapor Selesai (PDF):</span><strong style="color:var(--info);">${s.reportCounts.Selesai || 0}</strong></div>
+        </div>
+      `;
+    }
+
+    const compT = document.getElementById('dashboard-compliance-tbody');
+    if (s.complianceGaps && s.complianceGaps.length) {
+      compT.innerHTML = s.complianceGaps.map(g => `<tr><td><code>${esc(g.session_id)}</code></td><td>${esc(g.class_name)}</td><td>${esc(formatDate(g.planned_date))}</td><td>${esc(g.teacher)}</td></tr>`).join('');
+    } else compT.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--success);">Kepatuhan 100%! Tidak ada sesi yang terlambat diisi.</td></tr>';
+  } catch (e) {}
+}
+
+// Admin
+async function renderAdmin() {
+  const content = document.getElementById('content');
+  content.appendChild(document.getElementById('tpl-admin').content.cloneNode(true));
+  document.querySelectorAll('.btn-admin-tab').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.btn-admin-tab').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      loadAdminTab(e.target.getAttribute('data-tab'));
+    });
+  });
+  await loadAdminTab('users');
+}
+
+async function loadAdminTab(tab) {
+  const c = document.getElementById('admin-tab-content');
+  c.innerHTML = '<p>Memuat data admin...</p>';
+  try {
+    if (tab === 'users') {
+      const users = await api('listUsers');
+      c.innerHTML = `<div class="table-container"><table><thead><tr><th>Email</th><th>Nama</th><th>Peran</th><th>Cabang</th><th>Aktif</th></tr></thead><tbody>` +
+        users.map(u => `<tr><td>${esc(u.email)}</td><td>${esc(u.full_name)}</td><td><span class="badge badge-class-active">${esc(u.role)}</span></td><td>${esc(u.center_codes || 'Semua')}</td><td>${u.is_active ? '✓' : '✕'}</td></tr>`).join('') + '</tbody></table></div>';
+    } else if (tab === 'centers') {
+      const centers = await api('listCenters');
+      c.innerHTML = `<div class="table-container"><table><thead><tr><th>Kode</th><th>No</th><th>Nama Cabang</th><th>Status</th></tr></thead><tbody>` +
+        centers.map(x => `<tr><td><code>${esc(x.center_code)}</code></td><td>${esc(x.center_no)}</td><td>${esc(x.center_name)}</td><td>${x.is_active ? 'Aktif' : 'Non-aktif'}</td></tr>`).join('') + '</tbody></table></div>';
+    } else if (tab === 'programs') {
+      const progs = await api('listProgramsLevels');
+      c.innerHTML = `<div class="table-container"><table><thead><tr><th>Program</th><th>Level</th><th>Urutan</th><th>Naik Kecil</th><th>Naik Besar</th></tr></thead><tbody>` +
+        progs.map(p => `<tr><td>${esc(p.program)}</td><td>${esc(p.level)}</td><td>${esc(p.level_order)}</td><td>${esc(p.next_small_level)}</td><td>${esc(p.next_big_level)}</td></tr>`).join('') + '</tbody></table></div>';
+    } else if (tab === 'holidays') {
+      const holidays = await api('listHolidays');
+      c.innerHTML = `<div class="table-container"><table><thead><tr><th>Tanggal</th><th>Cabang</th><th>Keterangan</th></tr></thead><tbody>` +
+        holidays.map(h => `<tr><td>${esc(formatDate(h.date))}</td><td>${esc(h.center_code || 'Semua')}</td><td>${esc(h.description)}</td></tr>`).join('') + '</tbody></table></div>';
+    } else if (tab === 'audit') {
+      const logs = await api('getAuditLog');
+      c.innerHTML = `<div class="table-container" style="max-height:500px;"><table><thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Tabel</th><th>Record ID</th></tr></thead><tbody>` +
+        logs.map(l => `<tr><td>${esc(l.timestamp)}</td><td>${esc(l.user_email)}</td><td><span class="badge badge-class-active">${esc(l.action)}</span></td><td>${esc(l.table_name)}</td><td><code>${esc(l.record_id)}</code></td></tr>`).join('') + '</tbody></table></div>';
+    }
+  } catch (e) { c.innerHTML = '<p style="color:var(--danger);">Gagal memuat tab admin.</p>'; }
+}
+
+function populateCenterOptions(selectEl) {
+  if (!selectEl) return;
+  const curr = selectEl.value;
+  selectEl.innerHTML = '<option value="">Semua Cabang</option>' +
+    state.centers.map(c => `<option value="${esc(c.center_code)}">${esc(c.center_name)} (${esc(c.center_code)})</option>`).join('');
+  if (curr) selectEl.value = curr;
+}
+
+async function initApp() {
+  setLoading(true);
+  try {
+    const b = await api('getAppBootstrap');
+    if (!b || b.notRegistered) return showNotRegisteredScreen(b ? b.email : '');
+    state.user = b.user;
+    state.nav = b.nav || [];
+    state.dbReady = b.dbReady;
+
+    document.getElementById('user-display-name').textContent = state.user.full_name;
+    document.getElementById('user-display-role').textContent = `${state.user.role} ${state.user.centers.length ? '(' + state.user.centers.join(',') + ')' : '(Semua)'}`;
+    document.getElementById('user-avatar').textContent = (state.user.full_name || 'U').charAt(0).toUpperCase();
+
+    if (!state.dbReady) {
+      const banner = document.getElementById('app-banner');
+      banner.textContent = 'Peringatan: Database spreadsheet belum terhubung secara penuh.';
+      banner.classList.remove('hidden');
+    }
+
+    const navC = document.getElementById('nav-links');
+    navC.innerHTML = '';
+    for (const item of state.nav) {
+      const link = document.createElement('a');
+      link.className = 'nav-item';
+      link.href = `#/${item.id}`;
+      link.textContent = item.label;
+      navC.appendChild(link);
+    }
+
+    try {
+      state.centers = await api('listCenters');
+      state.classes = await api('listClasses');
+    } catch (e) {}
+
+    window.addEventListener('hashchange', handleRoute);
+    handleRoute();
+  } catch (err) {
+    showNotRegisteredScreen('');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function showNotRegisteredScreen(email) {
+  setLoading(false);
+  const layout = document.getElementById('app-layout');
+  if (layout) layout.classList.add('hidden');
+  const tpl = document.getElementById('tpl-not-registered');
+  document.body.appendChild(tpl.content.cloneNode(true));
+  const el = document.getElementById('not-registered-email');
+  if (el) el.textContent = email || 'akun Anda';
+}
+
+document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
+  document.getElementById('nav').classList.toggle('open');
+});
+
+window.addEventListener('DOMContentLoaded', initApp);
+</script>

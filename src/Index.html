@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Administrasi Akademik Sparks Math</title>
+  <base target="_top">
+  <?!= include('Styles') ?>
+</head>
+<body>
+  <!-- Splash Loading Screen -->
+  <div id="app-loading">
+    <div class="spinner"></div>
+    <div class="loading-text">Memuat Sistem Administrasi Akademik Sparks Math...</div>
+  </div>
+
+  <!-- Global Alert Banner for not-registered / db-not-ready states -->
+  <div id="app-banner" class="banner hidden"></div>
+
+  <div id="app-layout" class="app-layout">
+    <!-- Header Bar -->
+    <header id="app-header" class="app-header">
+      <div class="header-left">
+        <button id="btn-toggle-sidebar" class="btn-icon" aria-label="Menu" type="button">☰</button>
+        <span class="header-title">Sparks Math SIS</span>
+      </div>
+      <div class="header-right">
+        <div id="user-chip" class="user-chip">
+          <span class="user-avatar" id="user-avatar">?</span>
+          <div class="user-meta">
+            <span class="user-name" id="user-display-name">Memuat...</span>
+            <span class="user-role-badge" id="user-display-role">-</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <!-- Navigation Sidebar -->
+      <aside id="nav" class="app-sidebar">
+        <nav id="nav-links" class="nav-links">
+          <!-- Dynamic links populated by Scripts.html -->
+        </nav>
+        <div class="sidebar-footer">
+          <span id="footer-version">v0.1.0</span>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main id="content" class="app-content">
+        <!-- Rendered view template injects here -->
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal and Toast Roots -->
+  <div id="modal-root" class="modal-root hidden"></div>
+  <div id="toast-root" class="toast-root"></div>
+
+  <!-- View Templates and Client Logic -->
+  <?!= include('Views') ?>
+  <?!= include('Scripts') ?>
+</body>
+</html>

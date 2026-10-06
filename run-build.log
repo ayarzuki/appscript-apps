@@ -1,0 +1,63 @@
+Tue, Oct  6, 2026 11:17:30 AM
+```
+STATUS: done
+FILES:
+  src/appsscript.json — 14 lines
+  src/Code.gs — 26 lines
+  src/Config.gs — 203 lines
+  src/Setup.gs — 385 lines
+  src/Auth.gs — 138 lines
+  src/Db.gs — 432 lines
+  src/Students.gs — 201 lines
+  src/Classes.gs — 542 lines
+  src/Attendance.gs — 334 lines
+  src/Reports.gs — 291 lines
+  src/Events.gs — 141 lines
+  src/WaitingList.gs — 130 lines
+  src/Leveling.gs — 226 lines
+  src/Media.gs — 137 lines
+  src/Dashboard.gs — 281 lines
+  src/Admin.gs — 249 lines
+  src/Migration.gs — 126 lines
+  src/Index.html — 65 lines
+  src/Styles.html — 640 lines
+  src/Views.html — 1042 lines
+  src/Scripts.html — 985 lines
+VERIFY:
+== 5. google.script.run target cross-check ==
+  PASS all 46 server-call targets defined server-side (0 switch cases, 34 api() call sites)
+  PASS all 34 api() call sites resolve server-side
+== 6. bans ==
+  PASS no banned patterns
+== 7. key API surface ==
+  PASS Code.gs defines doGet()
+  PASS Code.gs defines include()
+  PASS Db.gs uses LockService.getScriptLock
+  PASS Db.gs uses CacheService
+  PASS Auth.gs uses Session.getActiveUser
+  PASS Auth.gs defines requireRole_
+  PASS Students.gs has nextStudentId_
+  PASS Classes.gs has parseDayCodes_
+  PASS Leveling.gs has computeRecommendation_
+  PASS Migration.gs reads OLD_SIS_SOURCES
+  PASS Index.html includes Styles
+  PASS Index.html includes Views
+  PASS Index.html includes Scripts
+  PASS requireRole_ used across 12 server files
+  PASS UI labels present: 11/11
+== 8. warnings (non-fatal) ==
+  WARN 1 TODO/FIXME marker(s) across files
+  PASS warnings evaluated
+
+=========================================
+RESULT: PASS — 0 failure(s), 1 warning(s)
+ASSUMPTIONS:
+- Class ID format C{center_no 2-digit}-{yy}{seq 3-digit} isolated in nextClassId_() based on doc §12 Q1.
+- Event rule: Progress Report months [1, 2, 4, 5] scheduled at class start_date + N months.
+- Media guidelines: 5 DOs and 5 DON'Ts generic content marked with TODO placeholder as specified.
+- Initial master data seed: LE level progression (1A through 3B) plus placeholder rows for CT and BS; single initial center 'BTR' (01 Bintaro).
+- Academic year starts on July 1 (month 7) for per-academic-year spreadsheet labeling (e.g., 2026-2027).
+NOTES: None — all 21 files have been created under src/, verified by syntax checks, table schema checks, and client-server target cross-checks with node verify.js exiting 0.
+```
+EXIT=0
+Tue, Oct  6, 2026 11:30:47 AM

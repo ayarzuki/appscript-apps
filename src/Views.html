@@ -1,0 +1,1041 @@
+<!-- Views.html — HTML Templates for All Application Screens and Modals -->
+
+<!-- Loading Screen Template -->
+<template id="tpl-loading">
+  <div class="empty-state">
+    <div class="spinner"></div>
+    <p style="margin-top: 14px;">Memuat data...</p>
+  </div>
+</template>
+
+<!-- Not Registered Screen Template -->
+<template id="tpl-not-registered">
+  <div class="card" style="max-width: 520px; margin: 40px auto; text-align: center;">
+    <div class="empty-icon">🔒</div>
+    <h2 class="card-title" style="justify-content: center; margin-bottom: 8px;">Akses Ditolak</h2>
+    <p style="color: var(--text-muted); margin-bottom: 16px;">
+      Akun Google Anda (<strong id="not-registered-email"></strong>) belum terdaftar di Sistem Administrasi Akademik Sparks Math.
+    </p>
+    <p style="font-size: 13px; color: var(--text-muted);">
+      Silakan hubungi tim HQ untuk mendaftarkan email Anda ke dalam sistem.
+    </p>
+  </div>
+</template>
+
+<!-- Database Not Ready Screen Template -->
+<template id="tpl-db-not-ready">
+  <div class="card" style="max-width: 540px; margin: 40px auto; text-align: center;">
+    <div class="empty-icon">⚙️</div>
+    <h2 class="card-title" style="justify-content: center; margin-bottom: 8px;">Database Belum Siap</h2>
+    <p style="color: var(--text-muted); margin-bottom: 16px;">
+      Spreadsheet database belum dikonfigurasi pada sistem ini.
+    </p>
+    <p style="font-size: 13px; color: var(--text-muted);">
+      Administrator HQ perlu menjalankan fungsi <code>setupDatabase()</code> terlebih dahulu.
+    </p>
+  </div>
+</template>
+
+<!-- 1. Beranda (Dashboard Home) -->
+<template id="tpl-beranda">
+  <div class="view-beranda">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Beranda</h1>
+        <div class="page-subtitle">Ringkasan aktivitas akademik dan jadwal operasional</div>
+      </div>
+    </div>
+
+    <!-- Metric Counts -->
+    <div class="stats-grid" id="beranda-metrics">
+      <div class="stat-card">
+        <div class="stat-label">Murid Aktif</div>
+        <div class="stat-val" id="count-active-students">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Murid Postponed</div>
+        <div class="stat-val" id="count-postponed-students">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Non-Active</div>
+        <div class="stat-val" id="count-nonactive-students">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Terdaftar</div>
+        <div class="stat-val" id="count-total-students">-</div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+      <!-- Today's Sessions -->
+      <div class="card">
+        <div class="card-title">
+          <span>📅 Sesi Kelas Hari Ini</span>
+        </div>
+        <div id="beranda-today-sessions" class="table-container" style="max-height: 280px;">
+          <!-- Populated by script -->
+        </div>
+      </div>
+
+      <!-- Upcoming Events / Deadlines -->
+      <div class="card">
+        <div class="card-title">
+          <span>⏰ Tenggat 7 Hari Mendatang</span>
+        </div>
+        <div id="beranda-upcoming-events" class="table-container" style="max-height: 280px;">
+          <!-- Populated by script -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Missing Attendance Alert (Compliance) -->
+    <div class="card" id="beranda-compliance-card">
+      <div class="card-title">
+        <span style="color: var(--danger);">⚠️ Kepatuhan Input: Sesi >3 Hari Belum Absensi</span>
+      </div>
+      <div id="beranda-missing-attendance" class="table-container">
+        <!-- Populated by script -->
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- 2. Murid (Students List) -->
+<template id="tpl-murid">
+  <div class="view-murid">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Murid</h1>
+        <div class="page-subtitle">Pangkalan data murid Sparks Math</div>
+      </div>
+      <div>
+        <button id="btn-add-student" class="btn btn-primary" type="button">+ Tambah Murid</button>
+      </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="filters-bar">
+      <input type="text" id="filter-student-search" placeholder="Cari nama, ID, atau panggilan..." style="min-width: 240px;">
+      <select id="filter-student-center">
+        <option value="">Semua Cabang</option>
+      </select>
+      <select id="filter-student-status">
+        <option value="">Semua Status</option>
+        <option value="Active">Active</option>
+        <option value="Postponed">Postponed</option>
+        <option value="Non-Active">Non-Active</option>
+        <option value="Cancel (DP Only)">Cancel (DP Only)</option>
+      </select>
+      <button id="btn-filter-students" class="btn btn-secondary" type="button">Terapkan</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Murid</th>
+            <th>Nama Lengkap</th>
+            <th>Panggilan</th>
+            <th>Cabang</th>
+            <th>Status</th>
+            <th>Paket</th>
+            <th>Sisa Credit</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="student-table-body">
+          <!-- Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<!-- 3. Murid Detail (Profile & Class History) -->
+<template id="tpl-murid-detail">
+  <div class="view-murid-detail">
+    <div class="content-header">
+      <div>
+        <button id="btn-back-to-students" class="btn btn-secondary btn-sm" type="button" style="margin-bottom: 8px;">← Kembali ke Daftar Murid</button>
+        <h1 class="page-title" id="student-detail-name">Profil Murid</h1>
+        <div class="page-subtitle" id="student-detail-sub">Informasi personal dan riwayat kelas</div>
+      </div>
+      <div>
+        <button id="btn-edit-student" class="btn btn-primary btn-sm" type="button">Edit Profil</button>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+      <!-- Profile Card -->
+      <div class="card">
+        <div class="card-title">Informasi Personal</div>
+        <div id="student-detail-info"></div>
+      </div>
+
+      <!-- Academic & Payment Card -->
+      <div class="card">
+        <div class="card-title">Akademik & Pembayaran</div>
+        <div id="student-detail-academic"></div>
+      </div>
+    </div>
+
+    <!-- Enrollment History -->
+    <div class="card">
+      <div class="card-title">
+        <span>Riwayat Penempatan Kelas</span>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID Penempatan</th>
+              <th>Nama Kelas</th>
+              <th>Program</th>
+              <th>Level</th>
+              <th>Tanggal Masuk</th>
+              <th>Tanggal Keluar</th>
+              <th>Alasan Keluar</th>
+            </tr>
+          </thead>
+          <tbody id="student-enrollment-tbody">
+            <!-- Rows -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- 4. Kelas (Classes List) -->
+<template id="tpl-kelas">
+  <div class="view-kelas">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Kelas</h1>
+        <div class="page-subtitle">Daftar kelas akademik Sparks Math</div>
+      </div>
+      <div>
+        <button id="btn-add-class" class="btn btn-primary" type="button">+ Buat Kelas Baru</button>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <select id="filter-class-center">
+        <option value="">Semua Cabang</option>
+      </select>
+      <select id="filter-class-status">
+        <option value="">Semua Status</option>
+        <option value="Draft">Draft</option>
+        <option value="Active">Active</option>
+        <option value="Completed">Completed</option>
+      </select>
+      <select id="filter-class-program">
+        <option value="">Semua Program</option>
+        <option value="LE">LE</option>
+        <option value="CT">CT</option>
+        <option value="BS">BS</option>
+      </select>
+      <input type="text" id="filter-class-day" placeholder="Hari (mis. TTh, MWF)..." style="width: 140px;">
+      <button id="btn-filter-classes" class="btn btn-secondary" type="button">Terapkan</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Kelas</th>
+            <th>Nama Kelas</th>
+            <th>Cabang</th>
+            <th>Jadwal</th>
+            <th>Ruangan</th>
+            <th>Teacher Utama</th>
+            <th>Intake</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="class-table-body">
+          <!-- Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<!-- 5. Kelas Detail -->
+<template id="tpl-kelas-detail">
+  <div class="view-kelas-detail">
+    <div class="content-header">
+      <div>
+        <button id="btn-back-to-classes" class="btn btn-secondary btn-sm" type="button" style="margin-bottom: 8px;">← Kembali ke Daftar Kelas</button>
+        <h1 class="page-title" id="class-detail-title">Detail Kelas</h1>
+        <div class="page-subtitle" id="class-detail-sub">Siswa terdaftar, jadwal 48 sesi, dan event milestone</div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="btn-place-student-modal" class="btn btn-secondary btn-sm" type="button">+ Masukkan Murid</button>
+        <button id="btn-edit-class" class="btn btn-primary btn-sm" type="button">Edit Kelas</button>
+      </div>
+    </div>
+
+    <!-- Class Info Cards -->
+    <div class="card" id="class-info-card"></div>
+
+    <!-- Enrolled Students Section -->
+    <div class="card">
+      <div class="card-title">
+        <span>Murid Terdaftar di Kelas</span>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID Murid</th>
+              <th>Nama Murid</th>
+              <th>Panggilan</th>
+              <th>Status Murid</th>
+              <th>Tanggal Gabung</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="class-students-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sessions Schedule (48 Sessions) -->
+    <div class="card">
+      <div class="card-title">
+        <span>Jadwal 48 Sesi Pertemuan</span>
+      </div>
+      <div class="table-container" style="max-height: 400px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Sesi #</th>
+              <th>ID Sesi</th>
+              <th>Tanggal Rencana</th>
+              <th>Tanggal Aktual</th>
+              <th>Milestone</th>
+              <th>Teacher</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="class-sessions-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Events Tracker Section -->
+    <div class="card">
+      <div class="card-title">
+        <span>Event Milestone Kelas</span>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Tipe Event</th>
+              <th>Keterangan</th>
+              <th>Tenggat (Due)</th>
+              <th>Tanggal Selesai</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="class-events-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- 6. Sesi & Absensi (Sessions Overview) -->
+<template id="tpl-sesi">
+  <div class="view-sesi">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Sesi & Absensi</h1>
+        <div class="page-subtitle">Daftar sesi mengajar dan pencatatan kehadiran & CMCU</div>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <button class="btn btn-secondary btn-scope active" data-scope="today">Sesi Hari Ini</button>
+      <button class="btn btn-secondary btn-scope" data-scope="unrecorded">Belum Diisi</button>
+      <button class="btn btn-secondary btn-scope" data-scope="upcoming">Mendatang</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Sesi</th>
+            <th>Kelas</th>
+            <th>Sesi #</th>
+            <th>Tanggal Rencana</th>
+            <th>Tanggal Aktual</th>
+            <th>Ruangan</th>
+            <th>Milestone</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="sessions-table-body">
+          <!-- Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<!-- 7. Sesi Input (Attendance & Daily Notes Form) -->
+<template id="tpl-sesi-input">
+  <div class="view-sesi-input">
+    <div class="content-header">
+      <div>
+        <button id="btn-back-to-sessions" class="btn btn-secondary btn-sm" type="button" style="margin-bottom: 8px;">← Kembali ke Daftar Sesi</button>
+        <h1 class="page-title" id="sesi-input-title">Input Absensi & Catatan Harian</h1>
+        <div class="page-subtitle" id="sesi-input-sub"></div>
+      </div>
+      <div>
+        <button id="btn-save-attendance" class="btn btn-primary" type="button">💾 Simpan Absensi & Catatan</button>
+      </div>
+    </div>
+
+    <!-- Session Meta Card -->
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tanggal Aktual</label>
+          <input type="date" id="sesi-actual-date">
+        </div>
+        <div class="form-group">
+          <label>Email Pengajar</label>
+          <input type="email" id="sesi-teacher-email">
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Roster Table -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 200px;">Nama Murid</th>
+            <th style="width: 220px;">Kehadiran</th>
+            <th style="width: 80px;">Nilai</th>
+            <th>Capaian (Achievement)</th>
+            <th>Perlu Ditingkatkan (Improvement)</th>
+          </tr>
+        </thead>
+        <tbody id="sesi-roster-tbody">
+          <!-- Roster rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<!-- 8. Assessment & Laporan -->
+<template id="tpl-penilaian">
+  <div class="view-penilaian">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Assessment & Laporan</h1>
+        <div class="page-subtitle">Penginputan nilai term dan pembuatan rapor PDF</div>
+      </div>
+      <div>
+        <button id="btn-open-assessment-editor" class="btn btn-primary" type="button">+ Input Nilai Kelas</button>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <select id="filter-assessment-center">
+        <option value="">Semua Cabang</option>
+      </select>
+      <input type="text" id="filter-assessment-class" placeholder="Filter ID Kelas (mis. C01-...)...">
+      <button id="btn-filter-assessments" class="btn btn-secondary" type="button">Terapkan</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Kelas</th>
+            <th>Cabang</th>
+            <th>ID Murid</th>
+            <th>Nama Murid</th>
+            <th>Term</th>
+            <th>Nilai</th>
+            <th>Tenggat</th>
+            <th>Status Laporan</th>
+            <th>Aksi Rapor</th>
+          </tr>
+        </thead>
+        <tbody id="assessment-table-body">
+          <!-- Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<!-- 9. Event Tracker -->
+<template id="tpl-event">
+  <div class="view-event">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Event Tracker</h1>
+        <div class="page-subtitle">Pelacak tenggat Progress Report, PTM, Class Media, dan Termly Report</div>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <select id="filter-event-center">
+        <option value="">Semua Cabang</option>
+      </select>
+      <select id="filter-event-type">
+        <option value="">Semua Tipe Event</option>
+        <option value="PROGRESS_REPORT">Progress Report</option>
+        <option value="PTM">PTM</option>
+        <option value="CLASS_MEDIA">Class Media</option>
+        <option value="TERMLY_REPORT">Termly Report</option>
+      </select>
+      <select id="filter-event-status">
+        <option value="">Semua Status</option>
+        <option value="Open">Open</option>
+        <option value="Done">Done</option>
+      </select>
+      <button id="btn-filter-events" class="btn btn-secondary" type="button">Terapkan</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Kelas</th>
+            <th>Cabang</th>
+            <th>Tipe Event</th>
+            <th>Keterangan</th>
+            <th>Tenggat</th>
+            <th>Tanggal Selesai</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="events-table-body">
+          <!-- Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<!-- 10. Waiting List -->
+<template id="tpl-waiting">
+  <div class="view-waiting">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Waiting List</h1>
+        <div class="page-subtitle">Antrean permintaan kelas dan jadwal calon murid</div>
+      </div>
+      <div>
+        <button id="btn-add-waiting" class="btn btn-primary" type="button">+ Tambah Antrean</button>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <select id="filter-waiting-center">
+        <option value="">Semua Cabang</option>
+      </select>
+      <button id="btn-filter-waiting" class="btn btn-secondary" type="button">Terapkan</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>No. Request</th>
+            <th>Tanggal</th>
+            <th>Sumber</th>
+            <th>Nama Calon</th>
+            <th>Program</th>
+            <th>Level</th>
+            <th>Hari & Jam</th>
+            <th>Status</th>
+            <th>Catatan</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="waiting-table-body">
+          <!-- Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<!-- 11. Leveling (Achievement Day) -->
+<template id="tpl-leveling">
+  <div class="view-leveling">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Leveling</h1>
+        <div class="page-subtitle">Evaluasi Achievement Day dan rekomendasi kenaikan level</div>
+      </div>
+      <div>
+        <button id="btn-save-leveling-decisions" class="btn btn-primary" type="button">💾 Simpan Keputusan Leveling</button>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <label>Pilih Kelas:</label>
+      <select id="select-leveling-class" style="min-width: 280px;"></select>
+      <button id="btn-load-leveling-board" class="btn btn-secondary" type="button">Muat Evaluasi</button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>ID Murid</th>
+            <th>Nama Murid</th>
+            <th>Nilai Akhir</th>
+            <th>Kehadiran</th>
+            <th>Rekomendasi Sistem</th>
+            <th>Alasan Rekomendasi</th>
+            <th>Keputusan Final Level</th>
+            <th>Tipe Keputusan</th>
+            <th>Catatan Review</th>
+          </tr>
+        </thead>
+        <tbody id="leveling-board-tbody">
+          <!-- Rows -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<!-- 12. Media (Class Media Upload & Checklist) -->
+<template id="tpl-media">
+  <div class="view-media">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Media</h1>
+        <div class="page-subtitle">Dokumentasi foto aktivitas belajar per milestone sesi</div>
+      </div>
+      <div>
+        <button id="btn-open-guidelines" class="btn btn-secondary" type="button">📖 Panduan Media</button>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <label>Pilih Kelas:</label>
+      <select id="select-media-class" style="min-width: 280px;"></select>
+      <button id="btn-load-media" class="btn btn-secondary" type="button">Muat Checklist Media</button>
+    </div>
+
+    <div id="media-milestones-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+      <!-- Milestone cards populated by script -->
+    </div>
+  </div>
+</template>
+
+<!-- 13. Dashboard (Analytics & Recaps) -->
+<template id="tpl-dashboard">
+  <div class="view-dashboard">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <div class="page-subtitle">Analitik kehadiran lintas program dan rekap kepatuhan input</div>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <select id="filter-dashboard-center">
+        <option value="">Semua Cabang</option>
+      </select>
+      <button id="btn-load-dashboard-stats" class="btn btn-secondary" type="button">Muat Statistik</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+      <!-- Attendance Rates by Program (CSS Bar Chart) -->
+      <div class="card">
+        <div class="card-title">Rata-rata Kehadiran per Program</div>
+        <div id="dashboard-program-rates"></div>
+      </div>
+
+      <!-- Report Generation Status -->
+      <div class="card">
+        <div class="card-title">Status Pembuatan Laporan</div>
+        <div id="dashboard-report-statuses"></div>
+      </div>
+    </div>
+
+    <!-- Compliance Gaps -->
+    <div class="card">
+      <div class="card-title" style="color: var(--danger);">
+        <span>Daftar Sesi Lewat Tanpa Absensi (>3 Hari)</span>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID Sesi</th>
+              <th>Kelas</th>
+              <th>Tanggal Rencana</th>
+              <th>Teacher</th>
+            </tr>
+          </thead>
+          <tbody id="dashboard-compliance-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- 14. Admin (HQ Only) -->
+<template id="tpl-admin">
+  <div class="view-admin">
+    <div class="content-header">
+      <div>
+        <h1 class="page-title">Admin</h1>
+        <div class="page-subtitle">Manajemen master data, pengguna, dan audit log sistem (Khusus HQ)</div>
+      </div>
+    </div>
+
+    <div class="filters-bar">
+      <button class="btn btn-secondary btn-admin-tab active" data-tab="users">Pengguna (Users)</button>
+      <button class="btn btn-secondary btn-admin-tab" data-tab="centers">Cabang (Centers)</button>
+      <button class="btn btn-secondary btn-admin-tab" data-tab="programs">Program & Level</button>
+      <button class="btn btn-secondary btn-admin-tab" data-tab="holidays">Hari Libur</button>
+      <button class="btn btn-secondary btn-admin-tab" data-tab="audit">Audit Log</button>
+    </div>
+
+    <div id="admin-tab-content">
+      <!-- Injected based on active tab -->
+    </div>
+  </div>
+</template>
+
+<!-- ==================== MODAL TEMPLATES ==================== -->
+
+<!-- Modal: Student Form -->
+<template id="tpl-modal-student-form">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title" id="student-modal-title">Tambah Murid Baru</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-student" class="form-grid">
+        <input type="hidden" name="student_id">
+        <div class="form-group">
+          <label>Cabang *</label>
+          <select name="center_code" required></select>
+        </div>
+        <div class="form-group">
+          <label>Nama Lengkap *</label>
+          <input type="text" name="full_name" required>
+        </div>
+        <div class="form-group">
+          <label>Nama Panggilan</label>
+          <input type="text" name="nickname">
+        </div>
+        <div class="form-group">
+          <label>Tanggal Lahir</label>
+          <input type="date" name="dob">
+        </div>
+        <div class="form-group">
+          <label>Nama Orang Tua</label>
+          <input type="text" name="parent_name">
+        </div>
+        <div class="form-group">
+          <label>No. HP Orang Tua</label>
+          <input type="text" name="parent_phone">
+        </div>
+        <div class="form-group">
+          <label>Bahasa Lembar Kerja</label>
+          <select name="language">
+            <option value="Indonesian">Indonesian</option>
+            <option value="English">English</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sekolah</label>
+          <input type="text" name="school">
+        </div>
+        <div class="form-group">
+          <label>Status Murid</label>
+          <select name="status">
+            <option value="Postponed">Postponed</option>
+            <option value="Active">Active</option>
+            <option value="Non-Active">Non-Active</option>
+            <option value="Cancel (DP Only)">Cancel (DP Only)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Paket</label>
+          <input type="text" name="package" placeholder="mis. Math - 12 mo">
+        </div>
+        <div class="form-group">
+          <label>Credit Sesi</label>
+          <input type="number" name="credit_class" value="48">
+        </div>
+        <div class="form-group">
+          <label>Status Pembayaran</label>
+          <input type="text" name="payment_status" placeholder="mis. Full / DP">
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-student" type="button">Simpan Murid</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Class Form -->
+<template id="tpl-modal-class-form">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title" id="class-modal-title">Buat Kelas Baru</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-class" class="form-grid">
+        <input type="hidden" name="class_id">
+        <div class="form-group">
+          <label>Cabang *</label>
+          <select name="center_code" required></select>
+        </div>
+        <div class="form-group">
+          <label>Program *</label>
+          <select name="program" required>
+            <option value="LE">LE</option>
+            <option value="CT">CT</option>
+            <option value="BS">BS</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Level *</label>
+          <input type="text" name="level" required placeholder="mis. 1A, 2A">
+        </div>
+        <div class="form-group">
+          <label>Jadwal Hari *</label>
+          <input type="text" name="schedule_day" required placeholder="mis. TTh, MWF, Sa">
+        </div>
+        <div class="form-group">
+          <label>Jadwal Jam *</label>
+          <input type="text" name="schedule_time" required placeholder="mis. 15:00">
+        </div>
+        <div class="form-group">
+          <label>Ruangan</label>
+          <input type="text" name="room" placeholder="mis. L3-Monkey D">
+        </div>
+        <div class="form-group">
+          <label>Teacher Utama</label>
+          <select name="main_teacher_email"></select>
+        </div>
+        <div class="form-group">
+          <label>Student Advisor (SA)</label>
+          <input type="email" name="sa_email">
+        </div>
+        <div class="form-group">
+          <label>Intake</label>
+          <input type="text" name="intake" placeholder="mis. Intake 4 Mar 2026">
+        </div>
+        <div class="form-group">
+          <label>Tanggal Mulai *</label>
+          <input type="date" name="start_date" required>
+        </div>
+        <div class="form-group">
+          <label>Status Kelas</label>
+          <select name="status">
+            <option value="Draft">Draft</option>
+            <option value="Active">Active</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-class" type="button">Simpan Kelas</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Placement Form -->
+<template id="tpl-modal-placement-form">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Tempatkan Murid ke Kelas</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-placement" class="form-grid">
+        <input type="hidden" name="class_id">
+        <div class="form-group full-width">
+          <label>Pilih Murid *</label>
+          <select name="student_id" required style="width: 100%;"></select>
+        </div>
+        <div class="form-group">
+          <label>Tanggal Mulai Gabung</label>
+          <input type="date" name="join_date">
+        </div>
+        <div class="form-group">
+          <label>Alasan (Bila pindahan)</label>
+          <select name="leave_reason">
+            <option value="Pindah Kelas">Pindah Kelas</option>
+            <option value="Level Up">Level Up</option>
+            <option value="Looping">Looping</option>
+            <option value="Postponed">Postponed</option>
+          </select>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-placement" type="button">Tempatkan Murid</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Assessment Editor -->
+<template id="tpl-modal-assessment-editor">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-header">
+      <h3 class="modal-title">Input Nilai Assessment Kelas</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom: 16px;">
+        <div class="form-group">
+          <label>Pilih Kelas</label>
+          <select id="modal-assessment-class"></select>
+        </div>
+        <div class="form-group">
+          <label>Tipe Assessment</label>
+          <select id="modal-assessment-type">
+            <option value="MIDTERM_1">Midterm 1</option>
+            <option value="FINAL_TERM_1">Final Term 1</option>
+            <option value="MIDTERM_2">Midterm 2</option>
+            <option value="FINAL_TERM_2">Final Term 2</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID Murid</th>
+              <th>Nama Murid</th>
+              <th>Nilai (Grade)</th>
+            </tr>
+          </thead>
+          <tbody id="modal-assessment-students-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-assessments" type="button">Simpan Semua Nilai</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Waiting Form -->
+<template id="tpl-modal-waiting-form">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Tambah Antrean Waiting List</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-waiting" class="form-grid">
+        <input type="hidden" name="request_no">
+        <div class="form-group">
+          <label>Tanggal Permintaan</label>
+          <input type="date" name="input_date">
+        </div>
+        <div class="form-group">
+          <label>Sumber Pendaftaran</label>
+          <input type="text" name="source" placeholder="mis. Walk-in, IG, Referral">
+        </div>
+        <div class="form-group">
+          <label>Nama Calon Murid *</label>
+          <input type="text" name="full_name" required>
+        </div>
+        <div class="form-group">
+          <label>Program</label>
+          <select name="program">
+            <option value="LE">LE</option>
+            <option value="CT">CT</option>
+            <option value="BS">BS</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Level</label>
+          <input type="text" name="level">
+        </div>
+        <div class="form-group">
+          <label>Hari Yang Diminta</label>
+          <input type="text" name="day" placeholder="mis. TTh, Sa">
+        </div>
+        <div class="form-group">
+          <label>Jam Yang Diminta</label>
+          <input type="text" name="time" placeholder="mis. 15:00">
+        </div>
+        <div class="form-group full-width">
+          <label>Catatan Tambahan</label>
+          <textarea name="notes" rows="2"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Batal</button>
+      <button class="btn btn-primary" id="btn-submit-waiting" type="button">Simpan Antrean</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Media Upload -->
+<template id="tpl-modal-media-upload">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 class="modal-title">Unggah Foto Media Sesi</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="upload-class-id">
+      <input type="hidden" id="upload-milestone">
+      <div class="form-group">
+        <label>Pilih File Foto (Bisa pilih hingga 4 foto)</label>
+        <input type="file" id="media-file-input" accept="image/*" multiple>
+      </div>
+      <div id="media-upload-progress" style="margin-top: 14px; font-size: 13px; color: var(--text-muted);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" type="button">Tutup</button>
+      <button class="btn btn-primary" id="btn-submit-upload-media" type="button">Mulai Unggah</button>
+    </div>
+  </div>
+</template>
+
+<!-- Modal: Confirm Dialog -->
+<template id="tpl-modal-confirm-dialog">
+  <div class="modal-dialog" style="max-width: 440px;">
+    <div class="modal-header">
+      <h3 class="modal-title" id="confirm-dialog-title">Konfirmasi Tindakan</h3>
+      <button class="btn-icon btn-close-modal" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-dialog-message" style="font-size: 14px; color: var(--text-main);"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-close-modal" id="btn-confirm-cancel" type="button">Batal</button>
+      <button class="btn btn-danger" id="btn-confirm-ok" type="button">Lanjutkan</button>
+    </div>
+  </div>
+</template>
