@@ -324,6 +324,19 @@ async function run() {
     virtualConsole,
     url: 'https://script.google.com/macros/s/test/exec',
     beforeParse(window) {
+      Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true, writable: true });
+      if (!window.matchMedia) {
+        window.matchMedia = function (q) {
+          const m = /max-width:\s*(\d+)px/.exec(q);
+          return {
+            matches: m ? window.innerWidth <= Number(m[1]) : false,
+            addEventListener: function () {},
+            removeEventListener: function () {},
+            addListener: function () {},
+            removeListener: function () {}
+          };
+        };
+      }
       window.onerror = function (msg, source, lineno, colno, err) {
         uncaughtErrors.push(err || new Error(String(msg)));
       };
@@ -372,6 +385,39 @@ async function run() {
     console.error(`RESULT: FAIL (footer text was "${footerEl ? footerEl.textContent : 'missing'}", expected "v0.1.2")`);
     process.exit(1);
   }
+
+  // Verify desktop sidebar toggle collapse/expand
+  console.log('== Desktop Sidebar Toggle Verification ==');
+  const btnToggleDesktop = dom.window.document.getElementById('btn-toggle-sidebar');
+  const layoutDesktop = dom.window.document.getElementById('app-layout');
+  if (!btnToggleDesktop || !layoutDesktop) {
+    console.error('FAIL: #btn-toggle-sidebar or #app-layout not found');
+    process.exit(1);
+  }
+
+  btnToggleDesktop.dispatchEvent(new dom.window.MouseEvent('click', {
+    bubbles: true,
+    cancelable: true,
+    view: dom.window
+  }));
+
+  if (!layoutDesktop.classList.contains('sidebar-collapsed')) {
+    console.error('FAIL desktop toggle: #app-layout missing sidebar-collapsed class after first click');
+    process.exit(1);
+  }
+  console.log('PASS desktop sidebar toggle -> sidebar-collapsed class added');
+
+  btnToggleDesktop.dispatchEvent(new dom.window.MouseEvent('click', {
+    bubbles: true,
+    cancelable: true,
+    view: dom.window
+  }));
+
+  if (layoutDesktop.classList.contains('sidebar-collapsed')) {
+    console.error('FAIL desktop toggle: #app-layout still has sidebar-collapsed class after second click');
+    process.exit(1);
+  }
+  console.log('PASS desktop sidebar toggle -> sidebar-collapsed class removed');
 
   const navEl = dom.window.document.getElementById('nav-links');
   const links = Array.from(navEl.querySelectorAll('a.nav-item'));
@@ -640,6 +686,19 @@ async function run() {
     virtualConsole: teacherConsole,
     url: 'https://script.google.com/macros/s/test/exec',
     beforeParse(window) {
+      Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true, writable: true });
+      if (!window.matchMedia) {
+        window.matchMedia = function (q) {
+          const m = /max-width:\s*(\d+)px/.exec(q);
+          return {
+            matches: m ? window.innerWidth <= Number(m[1]) : false,
+            addEventListener: function () {},
+            removeEventListener: function () {},
+            addListener: function () {},
+            removeListener: function () {}
+          };
+        };
+      }
       window.onerror = function (msg, source, lineno, colno, err) {
         teacherErrors.push(err || new Error(String(msg)));
       };
@@ -718,8 +777,122 @@ async function run() {
     process.exit(1);
   }
 
+  // --- Scenario 3: Mobile Sidebar Verification (width 600) ---
+  console.log('== Mobile Sidebar Verification ==');
+  const mobileDb = createStatefulDb();
+  const mobileFixture = makeFixtureHandler(mobileDb, 'HQ');
+  const mobileErrors = [];
+  const mobileConsole = new VirtualConsole();
+  mobileConsole.on('jsdomError', (err) => { mobileErrors.push(err); });
+
+  const mobileDom = new JSDOM(fullHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    virtualConsole: mobileConsole,
+    url: 'https://script.google.com/macros/s/test/exec',
+    beforeParse(window) {
+      Object.defineProperty(window, 'innerWidth', { value: 600, configurable: true, writable: true });
+      if (!window.matchMedia) {
+        window.matchMedia = function (q) {
+          const m = /max-width:\s*(\d+)px/.exec(q);
+          return {
+            matches: m ? window.innerWidth <= Number(m[1]) : false,
+            addEventListener: function () {},
+            removeEventListener: function () {},
+            addListener: function () {},
+            removeListener: function () {}
+          };
+        };
+      }
+      window.onerror = function (msg, source, lineno, colno, err) {
+        mobileErrors.push(err || new Error(String(msg)));
+      };
+      window.alert = () => {};
+      window.confirm = () => true;
+      window.prompt = () => '';
+      window.google = {
+        script: {
+          run: createRunMock(window, mobileFixture),
+          history: { pushState: () => {}, replaceState: () => {}, setChangeHandler: () => {} },
+          url: { getLocation: (cb) => { if (typeof cb === 'function') window.setTimeout(() => cb({ hash: '', parameter: {}, parameters: {} }), 0); } }
+        }
+      };
+    }
+  });
+
+  const mobileInited = await waitUntil(() => {
+    const navEl3 = mobileDom.window.document.getElementById('nav-links');
+    return navEl3 && navEl3.children.length === 11;
+  }, 3000);
+
+  if (!mobileInited) {
+    console.error('FAIL: mobile sim initApp timed out waiting for #nav-links with 11 items');
+    process.exit(1);
+  }
+
+  const mobileBtnToggle = mobileDom.window.document.getElementById('btn-toggle-sidebar');
+  const mobileNav = mobileDom.window.document.getElementById('nav');
+  if (!mobileBtnToggle || !mobileNav) {
+    console.error('FAIL mobile: #btn-toggle-sidebar or #nav missing');
+    process.exit(1);
+  }
+
+  // 1. click #btn-toggle-sidebar -> #nav gets class open
+  mobileBtnToggle.dispatchEvent(new mobileDom.window.MouseEvent('click', {
+    bubbles: true,
+    cancelable: true,
+    view: mobileDom.window
+  }));
+
+  if (!mobileNav.classList.contains('open')) {
+    console.error('FAIL mobile toggle: #nav does not have open class after toggle click');
+    process.exit(1);
+  }
+  console.log('PASS mobile sidebar toggle -> #nav open');
+
+  // 2. click a nav link (e.g. #/murid) -> #nav class open is REMOVED (auto-close) and content renders
+  const mobileMuridLink = mobileDom.window.document.querySelector('#nav-links a[href="#/murid"]');
+  if (!mobileMuridLink) {
+    console.error('FAIL mobile: #/murid link not found in #nav-links');
+    process.exit(1);
+  }
+
+  const mobileClickEvt = new mobileDom.window.MouseEvent('click', {
+    bubbles: true,
+    cancelable: true,
+    view: mobileDom.window
+  });
+  mobileMuridLink.dispatchEvent(mobileClickEvt);
+
+  if (!mobileClickEvt.defaultPrevented) {
+    console.error('FAIL mobile click #/murid: defaultPrevented was false');
+    process.exit(1);
+  }
+
+  if (mobileNav.classList.contains('open')) {
+    console.error('FAIL mobile auto-close: #nav still has open class after navigation');
+    process.exit(1);
+  }
+
+  const mobileContentEl = mobileDom.window.document.getElementById('content');
+  const mobileRendered = await waitUntil(() => {
+    return mobileContentEl && mobileContentEl.innerHTML.trim().length > 0;
+  }, 1500);
+
+  if (!mobileRendered) {
+    console.error('FAIL mobile click #/murid: #content was empty');
+    process.exit(1);
+  }
+
+  if (mobileErrors.length > 0) {
+    console.error(`FAIL mobile click #/murid: uncaught error: ${mobileErrors[0].message || mobileErrors[0]}`);
+    process.exit(1);
+  }
+
+  console.log('PASS mobile nav click -> #nav open class removed & content rendered');
+
   console.log('');
-  console.log(`RESULT: PASS (${passedClicks} HQ clicks + 8 admin CRUD steps + ${teacherPassedClicks} TEACHER clicks)`);
+  console.log(`RESULT: PASS (${passedClicks} HQ clicks + 8 admin CRUD steps + ${teacherPassedClicks} TEACHER clicks + desktop & mobile sidebar toggle)`);
   process.exit(0);
 }
 

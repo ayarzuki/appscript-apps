@@ -1,0 +1,34 @@
+I have started running `node ui-sim.js` in the background and will proceed once the initial baseline execution completes.
+Waiting for the test execution to complete.
+All requirements for `TASK-FIX4.md` have been implemented and verified:
+- Updated [src/Scripts.html](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/src/Scripts.html) with a width-aware toggle using [`matchMedia`](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/src/Scripts.html#L1556) (toggling `sidebar-collapsed` on `#app-layout` for desktop and `open` on `#nav` for mobile) and auto-closing the mobile drawer in [`navigateTo`](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/src/Scripts.html#L143-L151).
+- Updated [src/Styles.html](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/src/Styles.html#L639-L643) with the `@media (min-width: 901px)` desktop collapse rule hiding `.app-sidebar` under `.app-layout.sidebar-collapsed`.
+- Extended [ui-sim.js](file:///C:/Users/PAB-ACDM-NB3299/Documents/kerjaan/seven-retail/appscript-zuki/sis-sparks-math/ui-sim.js) with the `window.matchMedia` polyfill across test instances, verified desktop sidebar toggle collapse/expand before nav clicks, added Scenario 3 for mobile drawer toggle and auto-close upon navigation, and updated summary counts.
+- All four test suites executed cleanly and pass.
+
+```
+STATUS: done
+FILES:  src/Scripts.html — width-aware sidebar toggle listener + auto-close mobile drawer in navigateTo; src/Styles.html — desktop min-width: 901px sidebar-collapsed rule; ui-sim.js — matchMedia polyfill + desktop & mobile sidebar toggle assertions
+UI-SIM: == Mobile Sidebar Verification ==
+PASS mobile sidebar toggle -> #nav open
+PASS mobile nav click -> #nav open class removed & content rendered
+
+RESULT: PASS (11 HQ clicks + 8 admin CRUD steps + 4 TEACHER clicks + desktop & mobile sidebar toggle)
+ADMIN-SIM: PASS S5 — listTeachers('BTR') with tA (all), tB (BTR), tC (KLM inactive), lT (BTR LEAD_TEACHER) -> returns tA, tB, lT
+
+RESULT: PASS (5 scenarios)
+LOGIN:  PASS S7 — is_active stored as string 'TRUE'
+
+RESULT: PASS (7 scenarios)
+VERIFY:   PASS ui-sim.js drives matchMedia scenarios
+  PASS requireRole_ used across 12 server files
+  PASS UI labels present: 11/11
+== 8. warnings (non-fatal) ==
+  WARN 1 TODO/FIXME marker(s) across files
+  WARN very large files: Scripts.html (1567)
+  PASS warnings evaluated
+
+=========================================
+RESULT: PASS — 0 failure(s), 2 warning(s)
+NOTES:  none
+```

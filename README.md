@@ -145,6 +145,8 @@ dari editor: jalankan fungsi **`diagnoseLogin`**.
 | "Klik menu → halaman kosong" | Bug sandbox Apps Script (navigasi hash + `base target="_top"`) — **sudah diperbaiki di v0.1.2**; cukup muat ulang halaman |
 | "Bagaimana menambah akun Teacher (guru)?" | Login sebagai HQ → menu **Admin** → tab **Pengguna (Users)** → **+ Tambah Pengguna** → role **TEACHER**, centang cabang → Simpan. Akun langsung bisa login; nama otomatis muncul di dropdown "Pilih Teacher" saat membuat Kelas. |
 | "Tab Admin cuma bisa lihat (read-only)" | Sejak **v0.1.3** semua tab Admin bisa tambah/edit: Pengguna, Cabang, Program & Level, Hari Libur. |
+| "Tombol ☰ di header tidak berfungsi" | Sudah diperbaiki **v0.1.4**: di desktop ☰ melipat/menampilkan sidebar; di layar kecil ☰ membuka/menutup menu (dan menutup otomatis setelah pindah menu). |
+| "Bisa login pakai Gmail pribadi?" | **Tidak.** Web app memakai akun Google **Workspace domain `seven-retail.com`** — ini batasan platform Apps Script: identitas email pengunjung hanya terbaca untuk akun di domain yang sama (DB juga tetap privat, hanya diakses kode app). Staf dengan Gmail pribadi perlu dibuatkan akun `@seven-retail.com` dulu, baru didaftarkan lewat Admin → Pengguna. |
 
 **PENTING pasca-update v0.1.1:** manifest kini menambahkan scope `userinfo.email` ("View your email
 address") agar email pengguna terbaca pada web app. Setelah update ini, buka editor dan jalankan sekali
@@ -154,5 +156,5 @@ Test lokal: `node login-sim.js` mensimulasikan 7 skenario login (DB siap/kosong,
 non-aktif, variasi huruf besar/kecil email, dll.) tanpa perlu akun Google.
 
 ---
-*Dibangun: 6 Okt 2026 · **v0.1.3** (Admin CRUD — Tambah/Edit Pengguna termasuk Teacher, Cabang, Program & Level, Hari Libur; fix data baris komposit; lock re-entrant) ·
-diverifikasi: `node verify.js` + `node login-sim.js` (7/7) + `node ui-sim.js` (11 HQ + 8 admin + 4 TEACHER) + `node admin-sim.js` (5/5) + diff byte-identik dengan project remote.*
+*Dibangun: 6 Okt 2026 · **v0.1.4** (fix tombol ☰ sidebar: collapse/expand desktop + drawer mobile auto-close) ·
+diverifikasi: `node verify.js` + `node login-sim.js` (7/7) + `node ui-sim.js` (11 HQ + 8 admin + 4 TEACHER + toggle desktop/mobile) + `node admin-sim.js` (5/5) + diff byte-identik dengan project remote.*

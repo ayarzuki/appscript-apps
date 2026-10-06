@@ -143,6 +143,8 @@ function confirmDialog(title, message, onConfirm) {
 function navigateTo(hash) {
   state.currentHash = hash;
   renderRoute(hash);
+  const nav = document.getElementById('nav');
+  if (nav) nav.classList.remove('open');
   try {
     google.script.history.pushState({ route: hash }, {}, hash);
   } catch (e) {}
@@ -1550,7 +1552,13 @@ const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
 if (btnToggleSidebar) {
   btnToggleSidebar.addEventListener('click', () => {
     const nav = document.getElementById('nav');
-    if (nav) nav.classList.toggle('open');
+    const layout = document.getElementById('app-layout');
+    const isMobile = window.matchMedia('(max-width: 900px)').matches;
+    if (isMobile) {
+      if (nav) nav.classList.toggle('open');
+    } else if (layout) {
+      layout.classList.toggle('sidebar-collapsed');
+    }
   });
 }
 

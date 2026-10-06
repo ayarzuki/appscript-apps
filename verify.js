@@ -261,6 +261,21 @@ console.log('== 7d. admin CRUD UI wiring ==');
   const adminSim = read(path.join(ROOT, 'admin-sim.js')) !== null;
   if (adminSim) ok('admin-sim.js present'); else warn('admin-sim.js (server data harness) not present');
 }
+
+console.log('== 7e. sidebar toggle ==');
+{
+  const s = texts['Scripts.html'];
+  const st = texts['Styles.html'];
+  if (s) {
+    if (s.includes('sidebar-collapsed')) ok('Scripts.html toggles sidebar-collapsed (desktop collapse)'); else fail('Scripts.html missing sidebar-collapsed toggle');
+    if (s.includes('matchMedia')) ok('Scripts.html uses matchMedia for width-aware toggle'); else fail('Scripts.html missing matchMedia width check');
+  }
+  if (st) {
+    if (st.includes('sidebar-collapsed')) ok('Styles.html has .sidebar-collapsed rule'); else fail('Styles.html missing .sidebar-collapsed rule');
+  }
+  const uiSimTxt = read(path.join(ROOT, 'ui-sim.js'));
+  if (uiSimTxt && uiSimTxt.includes('matchMedia')) ok('ui-sim.js drives matchMedia scenarios'); else warn('ui-sim.js has no matchMedia coverage');
+}
 {
   const gsAll = REQUIRED_FILES.filter((x) => x.endsWith('.gs')).map((f) => texts[f] || '');
   const withRole = gsAll.filter((t) => t.includes('requireRole_')).length;
