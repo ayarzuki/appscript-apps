@@ -349,6 +349,21 @@ function authorizeSmokeTest() {
 }
 
 /**
+ * Sends a test email to the operator to verify the mail scope (run once from the editor).
+ * @return {Object}
+ */
+function smokeTestEmail() {
+  const to = Session.getActiveUser().getEmail();
+  MailApp.sendEmail({
+    to: to,
+    subject: '[SIS Sparks Math] Tes izin kirim email',
+    name: APP_TITLE,
+    body: 'Jika Anda membaca email ini, izin "Send email as you" sudah aktif dan kode login (OTP) siap dipakai.'
+  });
+  return { ok: true, sentTo: to };
+}
+
+/**
  * Removes duplicate time-driven triggers and installs a daily 01:00 trigger for buildSnapshots.
  */
 function installNightlyTriggers() {
