@@ -20,7 +20,14 @@ function isUserActive_(u) {
 function getCurrentUser_() {
   let email = '';
   try {
-    email = normalizeEmail_(Session.getActiveUser().getEmail());
+    const override = (typeof getIdentityOverride_ === 'function') ? getIdentityOverride_() : '';
+    let sessionEmail = '';
+    try {
+      sessionEmail = Session.getActiveUser().getEmail();
+    } catch (e) {
+      sessionEmail = '';
+    }
+    email = normalizeEmail_(override || sessionEmail);
   } catch (e) {
     email = '';
   }
@@ -87,18 +94,37 @@ function canAccess_(user, roles, centerCode) {
  * Returns user profile, dynamic navigation, and system status.
  * @return {Object}
  */
-function getAppBootstrap() {
+function getAppBootstrap(token) {
   let email = '';
   let dbReady = false;
   try {
     const dbId = getProp_(PROP_KEYS.DB_SPREADSHEET_ID);
     dbReady = Boolean(dbId);
 
+    let sessionEmail = '';
     try {
-      email = String(Session.getActiveUser().getEmail() || '').trim();
+      sessionEmail = String(Session.getActiveUser().getEmail() || '').trim();
     } catch (e) {
-      email = '';
+      sessionEmail = '';
     }
+
+    let tokenEmail = '';
+    if (token && typeof resolveToken_ === 'function') {
+      try {
+        tokenEmail = resolveToken_(token);
+      } catch (e) {
+        tokenEmail = '';
+      }
+    }
+    if (!tokenEmail && typeof getIdentityOverride_ === 'function') {
+      try {
+        tokenEmail = getIdentityOverride_();
+      } catch (e) {
+        tokenEmail = '';
+      }
+    }
+
+    email = tokenEmail || normalizeEmail_(sessionEmail);
 
     if (!dbReady) {
       return {
@@ -113,7 +139,7 @@ function getAppBootstrap() {
 
     if (email === '') {
       return {
-        state: 'email-unavailable',
+        state: 'login-required',
         email: '',
         notRegistered: true,
         dbReady: true,
@@ -160,7 +186,18 @@ function getAppBootstrap() {
       label: NAV_SCREENS[screenId] || screenId
     }));
 
-    return {
+    let sessionToken = '';
+    if (tokenEmail && token) {
+      sessionToken = token;
+    } else if (typeof issueToken_ === 'function') {
+      try {
+        sessionToken = issueToken_(normEmail);
+      } catch (e) {
+        sessionToken = '';
+      }
+    }
+
+    const payload = {
       state: 'ok',
       email: email,
       notRegistered: false,
@@ -176,6 +213,10 @@ function getAppBootstrap() {
       nav: nav,
       roles: ROLES.slice()
     };
+    if (sessionToken) {
+      payload.token = sessionToken;
+    }
+    return payload;
   } catch (err) {
     console.error('getAppBootstrap error: ' + err.message);
     return {
@@ -268,9 +309,18 @@ function diagnoseLogin() {
     verdict = 'Terjadi kesalahan: ' + err.message;
   }
 
+  let authMode = 'none';
+  const override = (typeof getIdentityOverride_ === 'function') ? getIdentityOverride_() : '';
+  if (override) {
+    authMode = 'token';
+  } else if (activeUser) {
+    authMode = 'session';
+  }
+
   return {
     activeUser: activeUser,
     effectiveUser: effectiveUser,
+    authMode: authMode,
     dbReady: dbReady,
     dbIdTail: dbIdTail,
     usersCount: usersCount,

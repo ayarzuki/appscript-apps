@@ -620,6 +620,58 @@
     margin-bottom: 8px;
   }
 
+  /* Login screen & OTP */
+  .login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background-color: var(--bg-main);
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 440px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: 32px 28px;
+    text-align: center;
+  }
+
+  .login-message {
+    font-size: 13px;
+    min-height: 20px;
+    color: var(--danger);
+  }
+
+  .login-message.success {
+    color: var(--success);
+  }
+
+  .logout-link {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    text-align: left;
+    width: 100%;
+    margin-top: 8px;
+    display: block;
+    transition: background 0.15s ease;
+  }
+
+  .logout-link:hover {
+    background-color: var(--danger-bg);
+  }
+
   /* Responsive */
   @media (max-width: 900px) {
     .app-sidebar {

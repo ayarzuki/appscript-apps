@@ -88,6 +88,14 @@ const TABLE_SCHEMAS = {
     'snapshot_date', 'center_code', 'program', 'active_students',
     'classes_active', 'attendance_rate_avg', 'compliance_missing',
     ...STANDARD_COLUMNS
+  ],
+  'auth_sessions': [
+    'token', 'email', 'created_at', 'expires_at', 'last_seen_at',
+    'is_deleted', 'updated_at', 'updated_by'
+  ],
+  'auth_codes': [
+    'email', 'code', 'expires_at', 'attempts', 'created_at',
+    'is_deleted', 'updated_at', 'updated_by'
   ]
 };
 

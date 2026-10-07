@@ -49,68 +49,43 @@ function setLoading(show) {
   if (splash) splash.classList.toggle('hidden', !show);
 }
 
+const AUTH_TOKEN_KEY = 'sis_sparks_token';
+
+function getAuthToken_() {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function setAuthToken_(t) {
+  try {
+    if (t) localStorage.setItem(AUTH_TOKEN_KEY, t);
+    else localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch (e) {}
+}
+
+function clearAuthToken_() {
+  try {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch (e) {}
+}
+
+function reloadApp_() {
+  window.location.reload();
+}
+
 /**
- * Unified API bridge to google.script.run.
- * Direct chained call format satisfies the acceptance test target extraction.
+ * Unified API bridge to google.script.run via callApi dispatcher.
  */
 function api(name, ...args) {
   setLoading(true);
   return new Promise((resolve, reject) => {
     const s = (res) => { setLoading(false); resolve(res); };
     const f = (err) => { setLoading(false); const m = err && err.message ? err.message : String(err); showToast(m, 'error'); reject(new Error(m)); };
-
-    switch (name) {
-      case 'getAppBootstrap': google.script.run.withSuccessHandler(s).withFailureHandler(f).getAppBootstrap(); break;
-      case 'diagnoseLogin': google.script.run.withSuccessHandler(s).withFailureHandler(f).diagnoseLogin(); break;
-      case 'getAppVersionInfo': google.script.run.withSuccessHandler(s).withFailureHandler(f).getAppVersionInfo(); break;
-      case 'getSetupStatus': google.script.run.withSuccessHandler(s).withFailureHandler(f).getSetupStatus(); break;
-      case 'listStudents': google.script.run.withSuccessHandler(s).withFailureHandler(f).listStudents(args[0]); break;
-      case 'getStudent': google.script.run.withSuccessHandler(s).withFailureHandler(f).getStudent(args[0]); break;
-      case 'createStudent': google.script.run.withSuccessHandler(s).withFailureHandler(f).createStudent(args[0]); break;
-      case 'updateStudent': google.script.run.withSuccessHandler(s).withFailureHandler(f).updateStudent(args[0]); break;
-      case 'listClasses': google.script.run.withSuccessHandler(s).withFailureHandler(f).listClasses(args[0]); break;
-      case 'getClassDetail': google.script.run.withSuccessHandler(s).withFailureHandler(f).getClassDetail(args[0]); break;
-      case 'createClass': google.script.run.withSuccessHandler(s).withFailureHandler(f).createClass(args[0]); break;
-      case 'updateClass': google.script.run.withSuccessHandler(s).withFailureHandler(f).updateClass(args[0]); break;
-      case 'listTeachers': google.script.run.withSuccessHandler(s).withFailureHandler(f).listTeachers(args[0]); break;
-      case 'placeStudent': google.script.run.withSuccessHandler(s).withFailureHandler(f).placeStudent(args[0], args[1], args[2], args[3]); break;
-      case 'closeEnrollment': google.script.run.withSuccessHandler(s).withFailureHandler(f).closeEnrollment(args[0], args[1], args[2], args[3]); break;
-      case 'getMySessions': google.script.run.withSuccessHandler(s).withFailureHandler(f).getMySessions(args[0]); break;
-      case 'getSessionRoster': google.script.run.withSuccessHandler(s).withFailureHandler(f).getSessionRoster(args[0]); break;
-      case 'saveSessionEntries': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveSessionEntries(args[0], args[1]); break;
-      case 'listSessionsForClass': google.script.run.withSuccessHandler(s).withFailureHandler(f).listSessionsForClass(args[0]); break;
-      case 'getClassAttendanceSummary': google.script.run.withSuccessHandler(s).withFailureHandler(f).getClassAttendanceSummary(args[0]); break;
-      case 'saveAssessments': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveAssessments(args[0], args[1]); break;
-      case 'listAssessmentBoard': google.script.run.withSuccessHandler(s).withFailureHandler(f).listAssessmentBoard(args[0]); break;
-      case 'generateReportPdf': google.script.run.withSuccessHandler(s).withFailureHandler(f).generateReportPdf(args[0], args[1], args[2]); break;
-      case 'listEvents': google.script.run.withSuccessHandler(s).withFailureHandler(f).listEvents(args[0]); break;
-      case 'updateEventStatus': google.script.run.withSuccessHandler(s).withFailureHandler(f).updateEventStatus(args[0], args[1], args[2]); break;
-      case 'listWaitingList': google.script.run.withSuccessHandler(s).withFailureHandler(f).listWaitingList(args[0]); break;
-      case 'saveWaitingEntry': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveWaitingEntry(args[0]); break;
-      case 'setWaitingStatus': google.script.run.withSuccessHandler(s).withFailureHandler(f).setWaitingStatus(args[0], args[1]); break;
-      case 'getLevelingBoard': google.script.run.withSuccessHandler(s).withFailureHandler(f).getLevelingBoard(args[0]); break;
-      case 'saveLevelingDecisions': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveLevelingDecisions(args[0], args[1]); break;
-      case 'getMediaChecklist': google.script.run.withSuccessHandler(s).withFailureHandler(f).getMediaChecklist(args[0]); break;
-      case 'uploadClassMedia': google.script.run.withSuccessHandler(s).withFailureHandler(f).uploadClassMedia(args[0], args[1], args[2], args[3], args[4]); break;
-      case 'getMediaGuidelines': google.script.run.withSuccessHandler(s).withFailureHandler(f).getMediaGuidelines(); break;
-      case 'getDashboardHome': google.script.run.withSuccessHandler(s).withFailureHandler(f).getDashboardHome(); break;
-      case 'getDashboardStats': google.script.run.withSuccessHandler(s).withFailureHandler(f).getDashboardStats(args[0]); break;
-      case 'listUsers': google.script.run.withSuccessHandler(s).withFailureHandler(f).listUsers(); break;
-      case 'saveUser': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveUser(args[0]); break;
-      case 'toggleUser': google.script.run.withSuccessHandler(s).withFailureHandler(f).toggleUser(args[0], args[1]); break;
-      case 'listCenters': google.script.run.withSuccessHandler(s).withFailureHandler(f).listCenters(); break;
-      case 'saveCenter': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveCenter(args[0]); break;
-      case 'listProgramsLevels': google.script.run.withSuccessHandler(s).withFailureHandler(f).listProgramsLevels(); break;
-      case 'saveProgramLevel': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveProgramLevel(args[0]); break;
-      case 'listHolidays': google.script.run.withSuccessHandler(s).withFailureHandler(f).listHolidays(args[0]); break;
-      case 'saveHoliday': google.script.run.withSuccessHandler(s).withFailureHandler(f).saveHoliday(args[0]); break;
-      case 'deleteHoliday': google.script.run.withSuccessHandler(s).withFailureHandler(f).deleteHoliday(args[0], args[1]); break;
-      case 'getAuditLog': google.script.run.withSuccessHandler(s).withFailureHandler(f).getAuditLog(args[0]); break;
-      case 'dryRunMigration': google.script.run.withSuccessHandler(s).withFailureHandler(f).dryRunMigration(args[0]); break;
-      default:
-        setLoading(false);
-        f(new Error('Metode server tidak dikenal: ' + name));
-    }
+    try { google.script.run.withSuccessHandler(s).withFailureHandler(f).callApi(name, args, getAuthToken_()); }
+    catch (e) { f(e); }
   });
 }
 
@@ -1450,6 +1425,165 @@ function showNotRegisteredScreen(email) {
   showAccessIssue({ state: 'not-registered', email: email || 'tidak terdeteksi' });
 }
 
+function renderLoginScreen(b) {
+  setLoading(false);
+  const splash = document.getElementById('app-loading');
+  if (splash) splash.style.display = 'none';
+
+  const layout = document.getElementById('app-layout');
+  if (layout) layout.classList.add('hidden');
+
+  document.querySelectorAll('.login-screen').forEach(el => el.remove());
+
+  const tpl = document.getElementById('tpl-login-otp');
+  if (!tpl) return;
+  const clone = tpl.content.cloneNode(true);
+
+  const emailIn = clone.querySelector('#login-email');
+  const sendBtn = clone.querySelector('#btn-send-code');
+  const codeWrap = clone.querySelector('#login-code-wrap');
+  const codeIn = clone.querySelector('#login-code');
+  const verifyBtn = clone.querySelector('#btn-verify-code');
+  const resendBtn = clone.querySelector('#btn-resend-code');
+  const msgEl = clone.querySelector('#login-message');
+
+  let currentEmail = '';
+  let resendTimer = null;
+
+  const startCountdown = (sec) => {
+    if (resendTimer) clearInterval(resendTimer);
+    let remaining = sec;
+    if (resendBtn) {
+      resendBtn.disabled = true;
+      resendBtn.textContent = `Kirim ulang (${remaining}s)`;
+    }
+    resendTimer = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(resendTimer);
+        resendTimer = null;
+        if (resendBtn) {
+          resendBtn.disabled = false;
+          resendBtn.textContent = 'Kirim ulang';
+        }
+      } else if (resendBtn) {
+        resendBtn.textContent = `Kirim ulang (${remaining}s)`;
+      }
+    }, 1000);
+  };
+
+  const handleSend = async () => {
+    const email = (emailIn && emailIn.value ? emailIn.value : '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (msgEl) {
+        msgEl.textContent = 'Alamat email tidak valid.';
+        msgEl.className = 'login-message';
+      }
+      return;
+    }
+    currentEmail = email;
+    if (sendBtn) sendBtn.disabled = true;
+    if (resendBtn) resendBtn.disabled = true;
+    if (msgEl) {
+      msgEl.textContent = 'Mengirim kode...';
+      msgEl.className = 'login-message';
+    }
+
+    try {
+      const res = await api('requestLoginCode', email);
+      if (res && res.ok) {
+        if (codeWrap) {
+          codeWrap.classList.remove('hidden');
+          codeWrap.style.display = 'block';
+        }
+        if (msgEl) {
+          msgEl.textContent = res.message || 'Kode telah dikirim.';
+          msgEl.className = 'login-message success';
+        }
+        startCountdown(60);
+        if (codeIn) codeIn.focus();
+      } else {
+        if (msgEl) {
+          msgEl.textContent = (res && res.message) ? res.message : 'Gagal mengirim kode.';
+          msgEl.className = 'login-message';
+        }
+      }
+    } catch (err) {
+      if (msgEl) {
+        msgEl.textContent = err && err.message ? err.message : String(err);
+        msgEl.className = 'login-message';
+      }
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+    }
+  };
+
+  const handleVerify = async () => {
+    const email = currentEmail || ((emailIn && emailIn.value) ? emailIn.value.trim().toLowerCase() : '');
+    const code = (codeIn && codeIn.value ? codeIn.value : '').trim();
+    if (!code || code.length !== 6) {
+      if (msgEl) {
+        msgEl.textContent = 'Masukkan 6 digit kode verifikasi.';
+        msgEl.className = 'login-message';
+      }
+      return;
+    }
+
+    if (verifyBtn) verifyBtn.disabled = true;
+    if (msgEl) {
+      msgEl.textContent = 'Memverifikasi...';
+      msgEl.className = 'login-message';
+    }
+
+    try {
+      const res = await api('verifyLoginCode', email, code);
+      if (res && res.ok) {
+        if (res.token) setAuthToken_(res.token);
+        if (msgEl) {
+          msgEl.textContent = res.message || 'Berhasil masuk.';
+          msgEl.className = 'login-message success';
+        }
+        reloadApp_();
+      } else {
+        if (msgEl) {
+          msgEl.textContent = (res && res.message) ? res.message : 'Kode salah atau kedaluwarsa.';
+          msgEl.className = 'login-message';
+        }
+      }
+    } catch (err) {
+      if (msgEl) {
+        msgEl.textContent = err && err.message ? err.message : String(err);
+        msgEl.className = 'login-message';
+      }
+    } finally {
+      if (verifyBtn) verifyBtn.disabled = false;
+    }
+  };
+
+  if (sendBtn) sendBtn.addEventListener('click', handleSend);
+  if (resendBtn) resendBtn.addEventListener('click', handleSend);
+  if (verifyBtn) verifyBtn.addEventListener('click', handleVerify);
+
+  if (emailIn) {
+    emailIn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSend();
+      }
+    });
+  }
+  if (codeIn) {
+    codeIn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleVerify();
+      }
+    });
+  }
+
+  document.body.appendChild(clone);
+}
+
 function initRouting() {
   let routed = false;
   const go = (h, replace) => {
@@ -1488,7 +1622,12 @@ async function initApp() {
       showDbNotReadyScreen(b);
       return;
     }
-    if (appState === 'email-unavailable' || appState === 'inactive' || appState === 'not-registered' || appState === 'error') {
+    if (appState === 'login-required' || appState === 'email-unavailable') {
+      clearAuthToken_();
+      renderLoginScreen(b);
+      return;
+    }
+    if (appState === 'inactive' || appState === 'not-registered' || appState === 'error') {
       showAccessIssue(b);
       return;
     }
@@ -1496,6 +1635,13 @@ async function initApp() {
       showAccessIssue(b);
       return;
     }
+
+    if (b.token) {
+      setAuthToken_(b.token);
+    }
+    document.querySelectorAll('.login-screen').forEach(el => el.remove());
+    const layout = document.getElementById('app-layout');
+    if (layout) layout.classList.remove('hidden');
 
     state.user = b.user;
     state.nav = b.nav || [];
@@ -1523,6 +1669,24 @@ async function initApp() {
       link.href = `#/${item.id}`;
       link.textContent = item.label;
       navC.appendChild(link);
+    }
+
+    const sidebarFooter = document.querySelector('.sidebar-footer');
+    if (sidebarFooter && !document.getElementById('btn-logout')) {
+      const btnLogout = document.createElement('button');
+      btnLogout.id = 'btn-logout';
+      btnLogout.className = 'logout-link';
+      btnLogout.type = 'button';
+      btnLogout.textContent = 'Keluar';
+      btnLogout.addEventListener('click', () => {
+        confirmDialog('Keluar dari sistem?', 'Anda perlu login kembali untuk mengakses sistem.', () => {
+          api('logout', getAuthToken_()).catch(() => {}).then(() => {
+            clearAuthToken_();
+            reloadApp_();
+          });
+        });
+      });
+      sidebarFooter.appendChild(btnLogout);
     }
 
     try {

@@ -59,6 +59,10 @@ sis-sparks-math/
    cabang contoh `BTR / Bintaro`, program/level contoh (LE 1A–3B + placeholder CT/BS).
 5. (Opsional) Jalankan **`installNightlyTriggers`** untuk snapshot dashboard harian 01:00 WIB.
 6. Buka **Web App URL** → login → aplikasi siap dipakai. (Pertama kali, ikuti layar izin bila diminta.)
+7. **Khusus v0.2.0 — dua langkah aktivasi manual:** (a) jalankan **`authorizeSmokeTest`** sekali lagi →
+   setujui izin baru **"Send email as you"** (`script.send_mail`, untuk kirim kode login);
+   (b) **Deploy → Manage deployments → ikon ✏️ → Who has access = "Anyone with Google account" → Deploy**.
+   Deployment yang sudah ada menyimpan pengaturan aksesnya sendiri — mengubah manifest saja tidak cukup.
 
 ## 3. Alur kerja pengembangan
 
@@ -127,7 +131,7 @@ Tanpa template, tombol Generate PDF akan menolak dengan pesan yang jelas.
 
 - DB **tidak di-share** ke pengguna aplikasi; akses hanya lewat web app (peran dicek di server, `requireRole_`).
 - Semua penulisan lewat `LockService` (anti tabrakan), soft delete, dan tercatat di `audit_log`.
-- Manifest: `executeAs: USER_DEPLOYING`, `access: DOMAIN` (hanya `@seven-retail.com`).
+- Manifest: `executeAs: USER_DEPLOYING`, `access: ANYONE` (siapa pun dengan akun Google). Staf domain tetap otomatis; akun Gmail pribadi lewat **kode verifikasi email** 6 digit (`auth_codes` → `auth_sessions`, token 30 hari di `localStorage`); semua fungsi server tetap dicek peran (`requireRole_`).
 - Kuota Apps Script & batas 6 menit per eksekusi: proses berat (snapshot, PDF massal) dijadwalkan lewat trigger / dipecah per cabang.
 
 ## 10. Troubleshooting & diagnostik
@@ -139,22 +143,24 @@ dari editor: jalankan fungsi **`diagnoseLogin`**.
 | Gejala | Arti & tindakan |
 |---|---|
 | "Database Belum Siap" | `setupDatabase()` belum dijalankan → buka editor, jalankan `setupDatabase()` lalu `seedMasterData()` |
-| "Email Tidak Terbaca" | Sesi Google tidak mengirim email — login dengan akun `@seven-retail.com` saja (hindari multi-akun di browser), lalu muat ulang |
+| "Email Tidak Terbaca" | Sejak **v0.2.0** akun luar domain otomatis diarahkan ke **layar Masuk (kode email)** — bukan error lagi. Bila akun domain tetap tidak terbaca: hindari multi-akun di browser, muat ulang |
 | "Akses Ditolak — (email) belum terdaftar" | Email terbaca benar tetapi tidak ada di tabel `users` → daftarkan lewat menu Admin |
 | "Akun Non-Aktif" | Baris `users` ada tapi `is_active` = FALSE → aktifkan lewat Admin |
 | "Klik menu → halaman kosong" | Bug sandbox Apps Script (navigasi hash + `base target="_top"`) — **sudah diperbaiki di v0.1.2**; cukup muat ulang halaman |
 | "Bagaimana menambah akun Teacher (guru)?" | Login sebagai HQ → menu **Admin** → tab **Pengguna (Users)** → **+ Tambah Pengguna** → role **TEACHER**, centang cabang → Simpan. Akun langsung bisa login; nama otomatis muncul di dropdown "Pilih Teacher" saat membuat Kelas. |
 | "Tab Admin cuma bisa lihat (read-only)" | Sejak **v0.1.3** semua tab Admin bisa tambah/edit: Pengguna, Cabang, Program & Level, Hari Libur. |
 | "Tombol ☰ di header tidak berfungsi" | Sudah diperbaiki **v0.1.4**: di desktop ☰ melipat/menampilkan sidebar; di layar kecil ☰ membuka/menutup menu (dan menutup otomatis setelah pindah menu). |
-| "Bisa login pakai Gmail pribadi?" | **Tidak.** Web app memakai akun Google **Workspace domain `seven-retail.com`** — ini batasan platform Apps Script: identitas email pengunjung hanya terbaca untuk akun di domain yang sama (DB juga tetap privat, hanya diakses kode app). Staf dengan Gmail pribadi perlu dibuatkan akun `@seven-retail.com` dulu, baru didaftarkan lewat Admin → Pengguna. |
+| "Bisa login pakai Gmail pribadi?" | **Bisa (v0.2.0).** Buka web app dengan akun Google apa pun → layar **Masuk** → isi email **yang sudah terdaftar di Admin** → kode 6 digit dikirim ke inbox (berlaku 10 menit) → masuk. Sesi 30 hari, tombol **Keluar** ada di sidebar. Email belum terdaftar? Minta HQ daftarkan dulu (Admin → Pengguna). |
 
-**PENTING pasca-update v0.1.1:** manifest kini menambahkan scope `userinfo.email` ("View your email
-address") agar email pengguna terbaca pada web app. Setelah update ini, buka editor dan jalankan sekali
-**`authorizeSmokeTest`** → setujui izin baru → baru buka ulang web app.
+**PENTING pasca-update v0.2.0 (dua langkah manual):** (1) di editor jalankan sekali **`authorizeSmokeTest`**
+dan setujui izin baru **"Send email as you"** (`script.send_mail` — untuk kirim kode login); (2) **Deploy →
+Manage deployments → ikon ✏️ → Who has access = "Anyone with Google account" → Deploy** — tanpa langkah ini
+akun Gmail pribadi masih ditolak Google sebelum aplikasi terbuka.
 
-Test lokal: `node login-sim.js` mensimulasikan 7 skenario login (DB siap/kosong, email kosong, user
-non-aktif, variasi huruf besar/kecil email, dll.) tanpa perlu akun Google.
+Test lokal: `node login-sim.js` mensimulasikan **11 skenario** (status DB, akun domain, alur kode email:
+kirim/salah/benar/limit, validasi token) tanpa perlu akun Google; `node ui-sim.js` menguji UI termasuk
+alur login kode.
 
 ---
-*Dibangun: 6 Okt 2026 · **v0.1.4** (fix tombol ☰ sidebar: collapse/expand desktop + drawer mobile auto-close) ·
-diverifikasi: `node verify.js` + `node login-sim.js` (7/7) + `node ui-sim.js` (11 HQ + 8 admin + 4 TEACHER + toggle desktop/mobile) + `node admin-sim.js` (5/5) + diff byte-identik dengan project remote.*
+*Dibangun: 6–7 Okt 2026 · **v0.2.0** (login kode-email untuk akun Gmail pribadi: dispatcher `callApi` + token sesi 30 hari + layar Masuk + tombol Keluar) ·
+diverifikasi: `node verify.js` + `node login-sim.js` (11/11) + `node ui-sim.js` (11 HQ + 8 admin + 4 TEACHER + toggle desktop/mobile + alur OTP) + `node admin-sim.js` (5/5) + diff byte-identik dengan project remote.*

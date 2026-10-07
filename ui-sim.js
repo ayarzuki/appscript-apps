@@ -75,19 +75,37 @@ function createStatefulDb() {
   };
 }
 
-function makeFixtureHandler(db, roleOverride = 'HQ') {
-  return function fixtureFor(methodName, args) {
+function makeFixtureHandler(db, roleOverride = 'HQ', sessionsMap = {}) {
+  return function fixtureFor(methodName, args, token) {
+    if (methodName === 'callApi') {
+      const targetName = args[0];
+      const targetArgs = args[1] || [];
+      const callToken = args[2] || token;
+      return fixtureFor(targetName, targetArgs, callToken);
+    }
     switch (methodName) {
-      case 'getAppBootstrap':
-        if (roleOverride === 'TEACHER') {
+      case 'getAppBootstrap': {
+        const resolved = (token && sessionsMap[token]) ? sessionsMap[token] : null;
+        if (!resolved) {
+          return {
+            state: 'login-required',
+            notRegistered: true,
+            dbReady: true,
+            version: '0.1.2',
+            title: 'Sistem Administrasi Akademik Sparks Math'
+          };
+        }
+        const effectiveRole = resolved.role || roleOverride;
+        if (effectiveRole === 'TEACHER') {
           return {
             state: 'ok',
+            token: token,
             notRegistered: false,
             dbReady: true,
             version: '0.1.2',
             title: 'Sistem Administrasi Akademik Sparks Math',
             user: {
-              email: 'teacher@seven-retail.com',
+              email: resolved.email || 'teacher@seven-retail.com',
               full_name: 'Guru Sparks',
               role: 'TEACHER',
               centers: ['BTR']
@@ -103,12 +121,13 @@ function makeFixtureHandler(db, roleOverride = 'HQ') {
         }
         return {
           state: 'ok',
+          token: token,
           notRegistered: false,
           dbReady: true,
           version: '0.1.2',
           title: 'Sistem Administrasi Akademik Sparks Math',
           user: {
-            email: 'aulya.kustyawan@seven-retail.com',
+            email: resolved.email || 'aulya.kustyawan@seven-retail.com',
             full_name: 'Test',
             role: 'HQ',
             centers: []
@@ -128,6 +147,27 @@ function makeFixtureHandler(db, roleOverride = 'HQ') {
             { id: 'admin', label: 'Admin' }
           ]
         };
+      }
+      case 'requestLoginCode':
+        return {
+          ok: true,
+          message: 'Kode telah dikirim ke ' + (args[0] || '') + '. Berlaku 10 menit.'
+        };
+      case 'verifyLoginCode': {
+        const em = args[0];
+        sessionsMap['tokNew'] = { email: em, role: 'HQ' };
+        return {
+          ok: true,
+          token: 'tokNew',
+          email: em,
+          message: 'Berhasil masuk.'
+        };
+      }
+      case 'logout': {
+        const tok = args[0] || token;
+        if (tok && sessionsMap[tok]) delete sessionsMap[tok];
+        return { ok: true };
+      }
       case 'listCenters':
         return db.centers.map(c => Object.assign({}, c));
       case 'saveCenter': {
@@ -309,8 +349,9 @@ async function waitUntil(predicate, timeoutMs, intervalMs = 25) {
 }
 
 async function run() {
+  const hqSessions = { 't1': { email: 'aulya.kustyawan@seven-retail.com', role: 'HQ' } };
   const db = createStatefulDb();
-  const fixtureHandler = makeFixtureHandler(db, 'HQ');
+  const fixtureHandler = makeFixtureHandler(db, 'HQ', hqSessions);
   const virtualConsole = new VirtualConsole();
   const uncaughtErrors = [];
 
@@ -344,6 +385,7 @@ async function run() {
       window.alert = () => {};
       window.confirm = () => true;
       window.prompt = () => '';
+      window.localStorage.setItem('sis_sparks_token', 't1');
 
       window.google = {
         script: {
@@ -674,8 +716,9 @@ async function run() {
 
   // --- Scenario 2: TEACHER Role ---
   console.log('== Teacher Role Verification ==');
+  const teacherSessions = { 't1': { email: 'teacher@seven-retail.com', role: 'TEACHER' } };
   const teacherDb = createStatefulDb();
-  const teacherFixture = makeFixtureHandler(teacherDb, 'TEACHER');
+  const teacherFixture = makeFixtureHandler(teacherDb, 'TEACHER', teacherSessions);
   const teacherErrors = [];
   const teacherConsole = new VirtualConsole();
   teacherConsole.on('jsdomError', (err) => { teacherErrors.push(err); });
@@ -705,6 +748,7 @@ async function run() {
       window.alert = () => {};
       window.confirm = () => true;
       window.prompt = () => '';
+      window.localStorage.setItem('sis_sparks_token', 't1');
       window.google = {
         script: {
           run: createRunMock(window, teacherFixture),
@@ -779,8 +823,9 @@ async function run() {
 
   // --- Scenario 3: Mobile Sidebar Verification (width 600) ---
   console.log('== Mobile Sidebar Verification ==');
+  const mobileSessions = { 't1': { email: 'aulya.kustyawan@seven-retail.com', role: 'HQ' } };
   const mobileDb = createStatefulDb();
-  const mobileFixture = makeFixtureHandler(mobileDb, 'HQ');
+  const mobileFixture = makeFixtureHandler(mobileDb, 'HQ', mobileSessions);
   const mobileErrors = [];
   const mobileConsole = new VirtualConsole();
   mobileConsole.on('jsdomError', (err) => { mobileErrors.push(err); });
@@ -810,6 +855,7 @@ async function run() {
       window.alert = () => {};
       window.confirm = () => true;
       window.prompt = () => '';
+      window.localStorage.setItem('sis_sparks_token', 't1');
       window.google = {
         script: {
           run: createRunMock(window, mobileFixture),
@@ -891,8 +937,136 @@ async function run() {
 
   console.log('PASS mobile nav click -> #nav open class removed & content rendered');
 
+  // --- Scenario 4: OTP Login (External Gmail) ---
+  console.log('== OTP Login (External) Verification ==');
+  const otpSessions = {};
+  const otpDb = createStatefulDb();
+  const otpFixture = makeFixtureHandler(otpDb, 'HQ', otpSessions);
+  const otpErrors = [];
+  const otpConsole = new VirtualConsole();
+  otpConsole.on('jsdomError', (err) => { otpErrors.push(err); });
+
+  const otpDom = new JSDOM(fullHtml, {
+    runScripts: 'dangerously',
+    resources: 'usable',
+    virtualConsole: otpConsole,
+    url: 'https://script.google.com/macros/s/test/exec',
+    beforeParse(window) {
+      Object.defineProperty(window, 'innerWidth', { value: 1024, configurable: true, writable: true });
+      if (!window.matchMedia) {
+        window.matchMedia = function (q) {
+          const m = /max-width:\s*(\d+)px/.exec(q);
+          return {
+            matches: m ? window.innerWidth <= Number(m[1]) : false,
+            addEventListener: function () {},
+            removeEventListener: function () {},
+            addListener: function () {},
+            removeListener: function () {}
+          };
+        };
+      }
+      window.onerror = function (msg, source, lineno, colno, err) {
+        otpErrors.push(err || new Error(String(msg)));
+      };
+      window.alert = () => {};
+      window.confirm = () => true;
+      window.prompt = () => '';
+      // Ensure NO token initially
+      window.localStorage.clear();
+      window.google = {
+        script: {
+          run: createRunMock(window, otpFixture),
+          history: { pushState: () => {}, replaceState: () => {}, setChangeHandler: () => {} },
+          url: { getLocation: (cb) => { if (typeof cb === 'function') window.setTimeout(() => cb({ hash: '', parameter: {}, parameters: {} }), 0); } }
+        }
+      };
+    }
+  });
+
+  // 1. Fresh window, NO token -> login screen rendered
+  const loginScreenVisible = await waitUntil(() => {
+    return Boolean(otpDom.window.document.getElementById('login-email')) &&
+           Boolean(otpDom.window.document.getElementById('btn-send-code'));
+  }, 3000);
+
+  if (!loginScreenVisible) {
+    console.error('FAIL OTP: login screen (#login-email / #btn-send-code) not rendered');
+    process.exit(1);
+  }
+  console.log('PASS OTP: login screen visible on start');
+
+  // 2. Fill #login-email and click #btn-send-code
+  const otpEmailIn = otpDom.window.document.getElementById('login-email');
+  otpEmailIn.value = 'external.guru@gmail.com';
+
+  const btnSendCode = otpDom.window.document.getElementById('btn-send-code');
+  btnSendCode.dispatchEvent(new otpDom.window.MouseEvent('click', { bubbles: true, cancelable: true, view: otpDom.window }));
+
+  // 3. #login-code-wrap visible
+  const codeWrapVisible = await waitUntil(() => {
+    const wrap = otpDom.window.document.getElementById('login-code-wrap');
+    return wrap && !wrap.classList.contains('hidden');
+  }, 2000);
+
+  if (!codeWrapVisible) {
+    console.error('FAIL OTP: #login-code-wrap not visible after clicking #btn-send-code');
+    process.exit(1);
+  }
+  console.log('PASS OTP: #login-code-wrap visible after send code');
+
+  // 4. Fill #login-code with '123456'
+  const otpCodeIn = otpDom.window.document.getElementById('login-code');
+  otpCodeIn.value = '123456';
+
+  // 5. BEFORE clicking #btn-verify-code, override reloadApp_ to simulate reload via DOMContentLoaded
+  otpDom.window.reloadApp_ = () => {
+    otpDom.window.__reloads = (otpDom.window.__reloads || 0) + 1;
+    otpDom.window.dispatchEvent(new otpDom.window.Event('DOMContentLoaded'));
+  };
+
+  // 6. Click #btn-verify-code
+  const btnVerifyCode = otpDom.window.document.getElementById('btn-verify-code');
+  btnVerifyCode.dispatchEvent(new otpDom.window.MouseEvent('click', { bubbles: true, cancelable: true, view: otpDom.window }));
+
+  // 7. Assert localStorage has token 'tokNew'
+  const tokenSaved = await waitUntil(() => {
+    return otpDom.window.localStorage.getItem('sis_sparks_token') === 'tokNew';
+  }, 2000);
+
+  if (!tokenSaved) {
+    console.error('FAIL OTP: localStorage["sis_sparks_token"] !== "tokNew"');
+    process.exit(1);
+  }
+  console.log('PASS OTP: session token saved in localStorage');
+
+  // 8. Assert __reloads === 1
+  const reloaded = await waitUntil(() => otpDom.window.__reloads === 1, 2000);
+  if (!reloaded) {
+    console.error('FAIL OTP: window.__reloads was not 1');
+    process.exit(1);
+  }
+  console.log('PASS OTP: reloadApp_ triggered reload (DOMContentLoaded)');
+
+  // 9. After re-init, assert nav links populated with 11 items & login screen removed
+  const appLoaded = await waitUntil(() => {
+    const nav = otpDom.window.document.getElementById('nav-links');
+    return nav && nav.children.length === 11;
+  }, 3000);
+
+  if (!appLoaded) {
+    console.error('FAIL OTP: app did not load with 11 nav items after login');
+    process.exit(1);
+  }
+
+  const leftoverLogin = otpDom.window.document.querySelector('.login-screen');
+  if (leftoverLogin) {
+    console.error('FAIL OTP: .login-screen element still present after login');
+    process.exit(1);
+  }
+  console.log('PASS OTP: nav rendered & login screen removed');
+
   console.log('');
-  console.log(`RESULT: PASS (${passedClicks} HQ clicks + 8 admin CRUD steps + ${teacherPassedClicks} TEACHER clicks + desktop & mobile sidebar toggle)`);
+  console.log(`RESULT: PASS (${passedClicks} HQ clicks + 8 admin CRUD steps + ${teacherPassedClicks} TEACHER clicks + desktop & mobile sidebar toggle + OTP login flow)`);
   process.exit(0);
 }
 

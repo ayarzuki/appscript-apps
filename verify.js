@@ -12,7 +12,7 @@ const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src');
 
 const REQUIRED_FILES = [
-  'appsscript.json', 'Code.gs', 'Config.gs', 'Setup.gs', 'Auth.gs', 'Db.gs',
+  'appsscript.json', 'Code.gs', 'Config.gs', 'Setup.gs', 'Auth.gs', 'Api.gs', 'Db.gs',
   'Students.gs', 'Classes.gs', 'Attendance.gs', 'Reports.gs', 'Events.gs',
   'WaitingList.gs', 'Leveling.gs', 'Media.gs', 'Dashboard.gs', 'Admin.gs',
   'Migration.gs', 'Index.html', 'Styles.html', 'Views.html', 'Scripts.html',
@@ -22,6 +22,7 @@ const REQUIRED_TABLES = [
   'students', 'classes', 'enrollments', 'sessions', 'attendance', 'daily_notes',
   'assessments', 'events', 'waiting_list', 'leveling', 'media', 'users',
   'centers', 'programs_levels', 'holidays', 'audit_log', 'snapshot_dashboard',
+  'auth_sessions', 'auth_codes',
 ];
 
 const failures = [];
@@ -50,11 +51,12 @@ if (texts['appsscript.json']) {
     if (m.runtimeVersion === 'V8') ok('runtimeVersion V8'); else fail(`runtimeVersion is ${m.runtimeVersion}`);
     const w = m.webapp || {};
     if (w.executeAs === 'USER_DEPLOYING') ok('webapp.executeAs USER_DEPLOYING'); else fail(`webapp.executeAs is ${w.executeAs}`);
-    if (w.access === 'DOMAIN') ok('webapp.access DOMAIN'); else fail(`webapp.access is ${w.access}`);
+    if (w.access === 'ANYONE') ok('webapp.access ANYONE (login Gmail pribadi via kode email)'); else fail(`webapp.access is ${w.access} (expected ANYONE untuk login kode email)`);
     const sc = (m.oauthScopes || []).join(' ');
     if (sc.includes('auth/spreadsheets')) ok('scope spreadsheets'); else fail('scope spreadsheets missing');
     if (sc.includes('auth/drive')) ok('scope drive'); else fail('scope drive missing');
     if (sc.includes('auth/userinfo.email')) ok('scope userinfo.email'); else fail('scope userinfo.email missing (Session.getActiveUser().getEmail() returns empty without it)');
+    if (sc.includes('script.send_mail')) ok('scope script.send_mail'); else fail('scope script.send_mail missing (login code email via MailApp)');
   } catch (e) { fail('appsscript.json is not valid JSON: ' + e.message); }
 }
 
@@ -182,6 +184,55 @@ function extractChainTargets(text) {
   }
 }
 
+// ---------- 5b. API routes allowlist (callApi dispatcher) ----------
+console.log('== 5b. API routes allowlist ==');
+{
+  const apiSrc = texts['Api.gs'] || '';
+  const routeKeys = new Set();
+  const block = /const\s+API_ROUTES\s*=\s*\{([\s\S]*?)\};/.exec(apiSrc);
+  if (!block) fail('Api.gs: API_ROUTES allowlist block not found');
+  else {
+    const reKey = /^\s*([A-Za-z_]\w*)\s*:/gm;
+    let m;
+    while ((m = reKey.exec(block[1])) !== null) routeKeys.add(m[1]);
+  }
+  if (block) {
+    if (routeKeys.size >= 45) ok(`API_ROUTES allowlist has ${routeKeys.size} routes`);
+    else fail(`API_ROUTES has only ${routeKeys.size} routes (expected >= 45)`);
+  }
+
+  const htmlFiles = ['Scripts.html', 'Views.html', 'Index.html'].filter((f) => texts[f]);
+  const apiTargets = new Set();
+  for (const f of htmlFiles) {
+    const reApi = /\bapi\(\s*'([A-Za-z_]\w*)'/g;
+    let m;
+    while ((m = reApi.exec(texts[f])) !== null) apiTargets.add(m[1]);
+  }
+  if (block) {
+    const unrouted = [...apiTargets].filter((t) => !routeKeys.has(t));
+    if (unrouted.length) unrouted.forEach((t) => fail(`api('${t}') is not in the API_ROUTES allowlist`));
+    else ok(`all ${apiTargets.size} api(...) call sites are in the allowlist`);
+  }
+
+  const serverSrc = REQUIRED_FILES.filter((x) => x.endsWith('.gs')).map((f) => texts[f] || '').join('\n');
+  const defRe = (n) => new RegExp(`(?:function\\s+${n}\\s*\\(|\\b(?:const|let|var)\\s+${n}\\s*=|\\b${n}\\s*=\\s*function\\b)`);
+  const bad = [];
+  for (const k of routeKeys) {
+    if (k.endsWith('_')) bad.push(`${k} (routes must not expose trailing-underscore helpers)`);
+    else if (!defRe(k).test(serverSrc)) bad.push(k);
+  }
+  if (bad.length) bad.forEach((x) => fail(`API_ROUTES entry not defined server-side: ${x}`));
+  else if (block) ok('every allowlisted route is defined server-side');
+
+  const s = texts['Scripts.html'] || '';
+  const bridges = (s.match(/google\.script\.run\.\s*withSuccessHandler/g) || []).length;
+  if (!s.includes('.callApi(')) fail('Scripts.html does not call callApi(...)');
+  else if (bridges !== 1) fail(`Scripts.html must have exactly one google.script.run bridge (found ${bridges})`);
+  else ok('single google.script.run bridge via callApi');
+
+  if (apiSrc.includes('PUBLIC_ROUTES')) ok('Api.gs declares PUBLIC_ROUTES'); else fail('Api.gs missing PUBLIC_ROUTES');
+}
+
 // ---------- 6. bans ----------
 console.log('== 6. bans ==');
 {
@@ -224,7 +275,7 @@ if (texts['Index.html']) {
 }
 has('Auth.gs', /function\s+diagnoseLogin\s*\(/, 'Auth.gs defines diagnoseLogin()');
 has('Auth.gs', /db-not-ready/, 'Auth.gs distinguishes db-not-ready state');
-has('Auth.gs', /email-unavailable/, 'Auth.gs distinguishes email-unavailable state');
+has('Auth.gs', /login-required/, 'Auth.gs distinguishes login-required state');
 {
   const simTxt = read(path.join(ROOT, 'login-sim.js'));
   if (simTxt === null) fail('login-sim.js (test harness) missing at project root');
@@ -275,6 +326,28 @@ console.log('== 7e. sidebar toggle ==');
   }
   const uiSimTxt = read(path.join(ROOT, 'ui-sim.js'));
   if (uiSimTxt && uiSimTxt.includes('matchMedia')) ok('ui-sim.js drives matchMedia scenarios'); else warn('ui-sim.js has no matchMedia coverage');
+}
+
+console.log('== 7f. email-code auth wiring ==');
+{
+  const a = texts['Api.gs'];
+  if (a) {
+    if (a.includes('MailApp')) ok('Api.gs sends codes via MailApp'); else fail('Api.gs missing MailApp');
+    for (const fn of ['callApi', 'requestLoginCode', 'verifyLoginCode', 'logout']) {
+      if (new RegExp('function\\s+' + fn + '\\s*\\(').test(a)) ok('Api.gs defines ' + fn + '()'); else fail('Api.gs missing ' + fn + '()');
+    }
+  }
+  const s = texts['Scripts.html'];
+  if (s) {
+    if (s.includes('sis_sparks_token')) ok('Scripts.html stores session token (sis_sparks_token)'); else fail('Scripts.html missing token storage sis_sparks_token');
+    if (s.includes('requestLoginCode')) ok('Scripts.html wires requestLoginCode'); else fail('Scripts.html missing requestLoginCode wiring');
+    if (s.includes('verifyLoginCode')) ok('Scripts.html wires verifyLoginCode'); else fail('Scripts.html missing verifyLoginCode wiring');
+    if (s.includes('localStorage')) ok('Scripts.html uses localStorage for the token'); else fail('Scripts.html missing localStorage token use');
+  }
+  const v = texts['Views.html'];
+  if (v) {
+    if (v.includes('tpl-login-otp')) ok('Views.html has tpl-login-otp'); else fail('Views.html missing tpl-login-otp template');
+  }
 }
 {
   const gsAll = REQUIRED_FILES.filter((x) => x.endsWith('.gs')).map((f) => texts[f] || '');

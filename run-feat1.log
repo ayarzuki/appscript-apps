@@ -1,0 +1,44 @@
+Wed, Oct  7, 2026 10:42:58 AM
+STATUS: done
+FILES:
+  src/Api.gs — new callApi dispatcher, token issuance/resolution, OTP request/verify/logout endpoints
+  src/Auth.gs — override-first identity with guard, optional token bootstrap parameter, login-required state
+  src/Setup.gs — added auth_sessions and auth_codes schemas to TABLE_SCHEMAS
+  src/appsscript.json — updated webapp.access to ANYONE and added script.send_mail scope
+  src/Scripts.html — sis_sparks_token helpers, single callApi bridge, reloadApp_, renderLoginScreen, logout button
+  src/Views.html — added tpl-login-otp template
+  src/Styles.html — login screen, card, message, and logout link CSS styles
+  login-sim.js — loaded Api.gs, added MailApp and generic sheet mocks, updated S1-S7, added S8-S11
+  ui-sim.js — callApi mock dispatcher, token session map, preseeded existing scenarios, added Scenario 4 OTP flow
+TEETH:
+  FAIL S9 — invalid token with empty session throws error (callApi with invalid token should have thrown)
+  FAIL S10 — OTP flow: request code, capture email, wrong code fails, valid code returns token, callApi works, unregistered fails with no email (Akun Anda belum terdaftar di sistem.)
+  RESULT: FAIL (2/11 failed)
+  Process exited with code: 1
+LOGIN:
+  PASS S9 — invalid token with empty session throws error
+  PASS S10 — OTP flow: request code, capture email, wrong code fails, valid code returns token, callApi works, unregistered fails with no email
+  PASS S11 — rate limit: immediate second requestLoginCode returns ok:false with wait message
+
+  RESULT: PASS (11 scenarios)
+UI-SIM:
+  PASS OTP: session token saved in localStorage
+  PASS OTP: reloadApp_ triggered reload (DOMContentLoaded)
+  PASS OTP: nav rendered & login screen removed
+
+  RESULT: PASS (11 HQ clicks + 8 admin CRUD steps + 4 TEACHER clicks + desktop & mobile sidebar toggle + OTP login flow)
+ADMIN:
+  PASS S5 — listTeachers('BTR') with tA (all), tB (BTR), tC (KLM inactive), lT (BTR LEAD_TEACHER) -> returns tA, tB, lT
+
+  RESULT: PASS (5 scenarios)
+VERIFY:
+  == 8. warnings (non-fatal) ==
+    WARN 1 TODO/FIXME marker(s) across files
+    WARN very large files: Scripts.html (1731)
+    PASS warnings evaluated
+
+  =========================================
+  RESULT: PASS — 0 failure(s), 2 warning(s)
+NOTES:  none
+EXIT=0
+Wed, Oct  7, 2026 10:59:39 AM

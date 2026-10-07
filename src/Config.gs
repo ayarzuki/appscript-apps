@@ -3,7 +3,16 @@
  */
 
 const APP_TITLE = 'Sistem Administrasi Akademik Sparks Math';
-const APP_VERSION = '0.1.4';
+const APP_VERSION = '0.2.0';
+
+// Email-code login (akun Gmail pribadi / luar domain) — lihat Api.gs
+const AUTH_CFG = {
+  TOKEN_TTL_DAYS: 30,
+  CODE_TTL_MINUTES: 10,
+  CODE_MAX_ATTEMPTS: 5,
+  CODE_RESEND_SECONDS: 60,
+  CODE_MAX_PER_HOUR: 3
+};
 
 // Script Properties keys
 const PROP_KEYS = {
@@ -175,6 +184,7 @@ DON'T (Dilarang):
 const CONFIG = {
   APP_TITLE,
   APP_VERSION,
+  AUTH_CFG,
   PROP_KEYS,
   TX_TABLES,
   REF_TABLES,
